@@ -115,22 +115,57 @@ const ChatInterface: React.FC = () => {
   // 自动保存当前对话到最近历史
   useEffect(() => {
     if (messages.length > 1 && hasInteracted) {
-      // 自动保存当前对话到历史记录
-      const title = messages[1].content.slice(0, 20) + '...';
-      const chatId = generateId();
-      
-      // 这里可以调用一个保存到本地存储的函数
+      // 获取现有历史记录
       const chatHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      
+      // 生成更有意义的标题
+      let title = '';
+      
+      if (messages.length > 1) {
+        // 尝试基于用户第一条消息生成主题
+        const firstUserMessage = messages.find(msg => msg.sender === 'user');
+        if (firstUserMessage) {
+          title = firstUserMessage.content.slice(0, 25) + (firstUserMessage.content.length > 25 ? '...' : '');
+        } else {
+          title = '新对话';
+        }
+      }
+      
+      // 创建对话ID，如果现有则保留ID
+      const existingChat = chatHistory.find((chat: any) => 
+        JSON.stringify(chat.messages) === JSON.stringify(messages)
+      );
+      
+      const chatId = existingChat?.id || generateId();
+      
+      // 创建新的聊天记录对象
       const newChat = {
         id: chatId,
         title: title,
         date: new Date().toLocaleString(),
-        preview: '最近对话',
+        preview: messages[messages.length - 1].content.slice(0, 50) + (messages[messages.length - 1].content.length > 50 ? '...' : ''),
         messages: messages
       };
       
-      const updatedHistory = [newChat, ...chatHistory.slice(0, 9)]; // 只保留最近10条
+      // 如果存在相同ID的对话，就更新它；否则添加新对话
+      const chatIndex = chatHistory.findIndex((chat: any) => chat.id === chatId);
+      let updatedHistory;
+      
+      if (chatIndex !== -1) {
+        // 更新现有对话
+        updatedHistory = [...chatHistory];
+        updatedHistory[chatIndex] = newChat;
+      } else {
+        // 添加新对话到历史记录前端
+        updatedHistory = [newChat, ...chatHistory.filter((chat: any) => chat.id !== chatId)].slice(0, 50); // 保留最近50条
+      }
+      
+      // 保存更新后的历史记录
       localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
+      
+      // 触发历史记录更新事件，使Sidebar实时更新
+      const event = new CustomEvent('chatHistoryUpdated', { detail: { chatHistory: updatedHistory } });
+      window.dispatchEvent(event);
     }
   }, [messages, hasInteracted]);
 
