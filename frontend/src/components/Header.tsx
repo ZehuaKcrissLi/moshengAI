@@ -6,8 +6,8 @@ const Header: React.FC = () => {
     <header className="bg-white shadow-sm">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <Link to="/" className="flex items-center">
-          <h1 className="text-2xl font-bold text-primary-600">魔音AI</h1>
-          <span className="ml-2 text-sm text-gray-500">AI商业英文配音</span>
+          <h1 className="text-2xl font-bold text-primary-600">魔声AI</h1>
+          <span className="ml-2 text-sm text-gray-500">AI商业多语种配音</span>
         </Link>
         <nav className="flex space-x-4">
           <Link to="/" className="text-gray-600 hover:text-primary-600 transition-colors">

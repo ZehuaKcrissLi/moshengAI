@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import AudioPlayer from './AudioPlayer';
 import { Message as MessageType, chatAPI } from '../services/api';
 import LogoIcon from './LogoIcon';
+import LoginModal from './LoginModal';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Message {
   id: string;
@@ -40,7 +42,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const INITIAL_MESSAGES: Message[] = [
   {
     id: generateId(),
-    content: '欢迎使用魔音AI配音助手！我可以帮您生成高质量的商业英文配音。请告诉我您的配音需求，例如主题、目标受众、风格等，或者直接提供您想要翻译和配音的中文内容。',
+    content: '欢迎使用魔声AI配音助手！我可以帮您生成高质量的商业英文配音。请告诉我您的配音需求，例如主题、目标受众、风格等，或者直接提供您想要翻译和配音的中文内容。',
     sender: 'ai'
   }
 ];
@@ -67,16 +69,18 @@ const ERROR_MESSAGES: {[key: number]: string} = {
 };
 
 const ChatInterface: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAudio, setSelectedAudio] = useState<string | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<{ status: number; message: string } | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // 监听清除会话事件
   useEffect(() => {
@@ -207,6 +211,12 @@ const ChatInterface: React.FC = () => {
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading || isStreaming) return;
     
+    // 检查是否已登录，如果未登录则显示登录弹窗
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    
     // 设置用户已交互
     if (!hasInteracted) {
       setHasInteracted(true);
@@ -248,15 +258,15 @@ const ChatInterface: React.FC = () => {
       console.log(`API错误 (${errorStatus}):`, errorDetail);
       
       // 设置API错误状态
-      setApiError(`错误 ${errorStatus}: ${errorDetail}`);
-      
-      // 构建用户友好的错误消息
-      const userFriendlyMessage = ERROR_MESSAGES[errorStatus] || '连接服务器时出错，请稍后再试';
+      setApiError({
+        status: errorStatus,
+        message: errorDetail
+      });
       
       // 添加错误消息
       const errorMessage: Message = {
         id: generateId(),
-        content: `抱歉，${userFriendlyMessage}\n\n技术详情: ${errorDetail}`,
+        content: `抱歉，发生了错误 (${errorStatus}): ${errorDetail}`,
         sender: 'ai',
         error: true
       };
@@ -293,7 +303,7 @@ const ChatInterface: React.FC = () => {
           <div className="w-full max-w-4xl px-4">
             <div className="text-center mb-10">
               <LogoIcon className="h-20 w-20 mx-auto text-primary-600 mb-6" />
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">魔音AI配音助手</h1>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">魔声AI配音助手</h1>
               <p className="text-lg text-gray-600 mx-auto">
                 {messages[0].content}
               </p>
@@ -465,7 +475,7 @@ const ChatInterface: React.FC = () => {
               {apiError && (
                 <div className="text-center py-2 mb-4">
                   <div className="inline-block px-3 py-1 bg-red-50 text-red-600 text-xs rounded-md">
-                    {apiError}
+                    {apiError.message}
                   </div>
                 </div>
               )}
@@ -529,6 +539,16 @@ const ChatInterface: React.FC = () => {
           </div>
         </>
       )}
+      
+      {/* 登录弹窗 */}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={() => {
+          setShowLoginModal(false);
+          // 可以在这里添加登录成功后的处理逻辑
+        }}
+      />
     </div>
   );
 };

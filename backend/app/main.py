@@ -6,7 +6,7 @@ from typing import List, Optional
 import os
 from .api import router as api_router
 
-app = FastAPI(title="魔音AI API", description="AI商业英文配音服务")
+app = FastAPI(title="魔声AI API", description="AI商业英文配音服务")
 
 # 添加CORS中间件
 app.add_middleware(
@@ -41,7 +41,7 @@ if os.path.exists(static_folder):
 
 @app.get("/")
 def read_root():
-    return {"message": "欢迎使用魔音AI - AI商业英文配音服务"}
+    return {"message": "欢迎使用魔声AI - AI商业英文配音服务"}
 
 @app.post("/api/audio-previews", response_model=List[AudioPreviewResponse])
 async def generate_audio_previews(request: TextToSpeechRequest):
@@ -83,6 +83,10 @@ async def generate_final_audio(request: TextToSpeechRequest):
         "audio_url": "/static/output/final_audio.mp3",
         "download_url": "/static/output/final_audio.mp3"
     }
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "message": "服务正常运行"}
 
 if __name__ == "__main__":
     import uvicorn

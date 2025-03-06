@@ -4,6 +4,8 @@ import './App.css'
 import ChatInterface from './components/ChatInterface'
 import Sidebar from './components/Sidebar'
 import LogoIcon from './components/LogoIcon'
+import WechatLogin from './components/WechatLogin'
+import GoogleLogin from './components/GoogleLogin'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -31,8 +33,8 @@ function App() {
               </button>
               <div className="flex items-center">
                 <LogoIcon className="h-8 w-8 text-primary-600" />
-                <h1 className="ml-2 text-xl font-semibold text-gray-800">魔音AI</h1>
-                <span className="ml-2 text-sm text-gray-500">AI商业英文配音</span>
+                <h1 className="ml-2 text-xl font-semibold text-gray-800">魔声AI</h1>
+                <span className="ml-2 text-sm text-gray-500">AI商业多语言配音</span>
               </div>
             </div>
           </header>
@@ -42,6 +44,8 @@ function App() {
             <Routes>
               <Route path="/" element={<ChatInterface />} />
               <Route path="/chat/:id" element={<ChatInterface />} />
+              <Route path="/auth/wechat-callback" element={<WechatLogin />} />
+              <Route path="/auth/google-callback" element={<GoogleLogin />} />
             </Routes>
           </main>
         </div>

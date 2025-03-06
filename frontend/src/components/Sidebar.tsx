@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import UserAvatar from './UserAvatar';
+import LoginModal from './LoginModal';
 
 interface ChatHistory {
   id: string;
@@ -64,6 +66,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       url: 'https://example.com/audio3.mp3',
     },
   ];
+  
+  // 添加登录模态框状态
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // 点击外部关闭菜单
   useEffect(() => {
@@ -242,7 +247,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
   };
 
   return (
-    <aside className={`sidebar bg-gray-50 border-r border-gray-200 ${isOpen ? 'open' : ''}`}>
+    <aside className={`h-full flex flex-col ${isOpen ? 'w-full' : 'w-0'} transition-width duration-300 overflow-hidden`}>
       {/* 移动端关闭按钮 */}
       <div className="lg:hidden absolute top-4 right-3">
         <button
@@ -470,7 +475,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             </div>
           )}
         </div>
+        
+        {/* 添加底部用户信息 */}
+        <div className="mt-auto border-t border-gray-200">
+          <UserAvatar onClick={() => setShowLoginModal(true)} />
+        </div>
       </div>
+      
+      {/* 登录弹窗 */}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)}
+        onLoginSuccess={() => setShowLoginModal(false)}
+      />
     </aside>
   );
 };
