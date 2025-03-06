@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔声AI语音合成</title>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            min-height: 100px;
+            font-size: 16px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .audio-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #4CAF50;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>魔声AI语音合成</h1>
+    <div class="container">
+        <div class="form-group">
+            <label for="text">输入文本:</label>
+            <textarea id="text" placeholder="请输入要合成的文本">这是一个测试语音合成的文本</textarea>
+        </div>
+        <div class="form-group">
+            <label for="voice-type">声音类型:</label>
+            <select id="voice-type">
+                <option value="默认">默认</option>
+            </select>
+        </div>
+        <button id="synthesize-btn">合成语音</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在合成语音，请稍候...</p>
+        </div>
+        
+        <div class="audio-container" id="audio-container">
+            <h3>合成结果:</h3>
+            <audio id="audio-player" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('synthesize-btn').addEventListener('click', async () => {
+            const text = document.getElementById('text').value;
+            const voiceType = document.getElementById('voice-type').value;
+            
+            if (!text) {
+                alert('请输入要合成的文本');
+                return;
+            }
+            
+            // 显示加载动画
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('audio-container').style.display = 'none';
+            
+            try {
+                const formData = new FormData();
+                formData.append('text', text);
+                formData.append('voice_type', voiceType);
+                
+                const response = await fetch('/synthesize', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`合成失败: ${response.statusText}`);
+                }
+                
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                const audioPlayer = document.getElementById('audio-player');
+                audioPlayer.src = audioUrl;
+                
+                // 显示音频播放器
+                document.getElementById('audio-container').style.display = 'block';
+                
+                // 自动播放
+                audioPlayer.play();
+            } catch (error) {
+                alert(`错误: ${error.message}`);
+                console.error(error);
+            } finally {
+                // 隐藏加载动画
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html> 
