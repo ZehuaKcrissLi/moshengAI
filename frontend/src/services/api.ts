@@ -207,22 +207,52 @@ export const authAPI = {
   // 社交登录 - Google
   googleLogin: async (code: string) => {
     try {
-      console.log('发送Google登录请求，code:', code);
-      // 直接使用完整URL，不依赖baseURL
-      const response = await axios.post('http://localhost:8000/api/auth/google-login', { code }, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      console.log('Google登录响应:', response.data);
+      if (!code || code.trim() === '') {
+        console.error('Google登录错误: 授权码为空');
+        throw new Error('授权码不能为空');
+      }
+      
+      console.log('准备发送Google登录请求');
+      console.log('授权码前10位:', code.substring(0, 10) + '...');
+      console.log('API基础URL:', API_BASE_URL);
+      
+      const requestData = { code }; // 创建请求数据对象
+      
+      // 使用完整URL，确保请求正确发送
+      const fullUrl = `${API_BASE_URL}/auth/google-login`;
+      console.log('发送Google登录请求到:', fullUrl);
+      
+      const response = await api.post<LoginResponse>('/auth/google-login', requestData);
+      console.log('Google登录响应状态:', response.status);
+      console.log('Google登录响应数据:', response.data);
       
       if (response.data.token) {
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        console.log('已保存用户信息和令牌');
       }
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google登录失败:', error);
+      
+      // 详细记录错误信息
+      if (error.response) {
+        console.error('错误响应状态:', error.response.status);
+        console.error('错误响应数据:', error.response.data);
+        console.error('错误响应头:', error.response.headers);
+      } else if (error.request) {
+        console.error('请求已发送但没有收到响应:', error.request);
+      } else {
+        console.error('请求配置错误:', error.message);
+      }
+      
+      // 如果是401错误，且包含授权码已过期或已被使用的信息
+      if (error.response && error.response.status === 401 && 
+          error.response.data?.detail?.includes('授权码已过期')) {
+        throw new Error('授权码已过期或已被使用，请重新登录');
+      }
+      
+      // 重新抛出错误，保持原始错误信息
       throw error;
     }
   }

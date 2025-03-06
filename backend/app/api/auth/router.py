@@ -57,7 +57,9 @@ async def google_login_route(login_data: GoogleLogin):
     Google登录
     """
     try:
-        print(f"收到Google登录请求，授权码: {login_data.code[:10]}...")
+        # 打印接收到的请求数据
+        print(f"接收到的Google登录数据: {login_data}")
+        print(f"收到Google登录请求，授权码: {login_data.code[:10] if login_data.code else 'None'}...")
         result = google_login(login_data.code)
         print("Google登录成功")
         return result

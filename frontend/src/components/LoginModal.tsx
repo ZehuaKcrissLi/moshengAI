@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import LogoIcon from './LogoIcon';
 
@@ -18,6 +18,31 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
   // 显示注册表单
   const [showRegister, setShowRegister] = useState(false);
   const [username, setUsername] = useState('');
+  
+  // 创建对弹窗内容的引用
+  const modalContentRef = useRef<HTMLDivElement>(null);
+  
+  // 处理点击事件
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // 如果点击的是背景层而不是弹窗内容，则关闭弹窗
+    if (modalContentRef.current && !modalContentRef.current.contains(e.target as Node)) {
+      onClose();
+    }
+  };
+  
+  // 处理ESC键关闭弹窗
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (isOpen && e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscKey);
+    return () => {
+      window.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isOpen, onClose]);
 
   // 处理登录提交
   const handleLogin = async (e: React.FormEvent) => {
@@ -115,62 +140,62 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
   
   // 处理Google登录
   const handleGoogleLogin = () => {
+    // 清除之前的错误
+    setError(null);
+    
+    // 清除之前可能存在的状态
+    localStorage.removeItem('google_auth_state');
+    sessionStorage.removeItem('google_auth_state');
+    
+    // 保存当前页面URL，以便登录后返回
+    localStorage.setItem('auth_redirect_url', window.location.href);
+    sessionStorage.setItem('auth_redirect_url', window.location.href);
+    
     // Google OAuth参数 - 确保与后端保持一致
     const clientId = '1080640002203-8llt2h00f9dbj5e7gd6t0rakh61b8ch1.apps.googleusercontent.com';
     const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google-callback`);
     const scope = encodeURIComponent('profile email');
     const responseType = 'code';
-    const state = Math.random().toString(36).substring(2);
+    
+    // 使用简单的state值
+    const state = 'google_auth_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+    
     const accessType = 'offline';
     const prompt = 'consent';
     
-    // 保存state用于防止CSRF攻击
+    // 同时保存state到localStorage和sessionStorage
     localStorage.setItem('google_auth_state', state);
+    sessionStorage.setItem('google_auth_state', state);
+    console.log('已保存Google认证状态:', state);
     
     // 构建Google OAuth URL
     const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${scope}&state=${state}&access_type=${accessType}&prompt=${prompt}`;
     
-    console.log('打开Google登录链接:', googleOAuthUrl);
+    console.log('重定向到Google登录:', googleOAuthUrl);
     
-    // 打开Google登录窗口
-    const googleLoginWindow = window.open(googleOAuthUrl, 'Google登录', 'width=600,height=700');
-    if (!googleLoginWindow) {
-      setError('无法打开登录窗口，请检查是否阻止了弹出窗口');
-      return;
-    }
-    
-    // 监听消息事件
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data.type === 'google-login-success') {
-        // 登录成功
-        onLoginSuccess();
-        onClose();
-        window.removeEventListener('message', handleMessage);
-      } else if (event.data.type === 'google-login-error') {
-        // 登录失败
-        if (event.data.error === 'auth_code_used') {
-          setError('需要重新授权，请再次点击Google登录');
-          // 清除可能存在的旧状态
-          localStorage.removeItem('google_auth_state');
-        } else {
-          setError(`Google登录失败: ${event.data.message || event.data.error || '请重试'}`);
-        }
-        window.removeEventListener('message', handleMessage);
-      }
-    };
-    
-    window.addEventListener('message', handleMessage);
+    // 直接在当前窗口打开Google登录，而不是使用弹窗
+    window.location.href = googleOAuthUrl;
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden">
+    // 添加点击事件到背景层
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 transition-opacity duration-300"
+      onClick={handleBackdropClick}
+    >
+      {/* 弹窗内容 - 添加ref并阻止点击事件冒泡 */}
+      <div 
+        ref={modalContentRef}
+        className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden transition-transform duration-300 transform"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* 关闭按钮 */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 focus:outline-none"
+          aria-label="关闭"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
