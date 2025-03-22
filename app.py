@@ -53,7 +53,8 @@ cosyvoice = CosyVoice2(model_path, load_jit=False, load_trt=False, fp16=False)
 print("模型加载成功！")
 
 # 加载示例音频作为提示
-PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/zero_shot_prompt.wav")
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/zero_shot_prompt.wav")
+PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/quanyoujiaju.wav")
 if os.path.exists(PROMPT_PATH):
     prompt_speech_16k = load_wav(PROMPT_PATH, 16000)
     print(f"已加载提示音频: {PROMPT_PATH}")
@@ -71,7 +72,7 @@ async def root():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.post("/synthesize")
-async def synthesize(text: str = Form(...), voice_type: str = Form("默认")):
+async def synthesize(text: str = Form(...), voice_type: str = Form("促销")):
     """
     将文本转换为语音
     
@@ -91,7 +92,7 @@ async def synthesize(text: str = Form(...), voice_type: str = Form("默认")):
         
         # 合成语音
         # 使用zero_shot模式而不是sft模式
-        for i, result in enumerate(cosyvoice.inference_zero_shot(text, "希望你以后能够做的比我还好呦。", prompt_speech_16k, stream=False)):
+        for i, result in enumerate(cosyvoice.inference_zero_shot(text, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
             tts_speech = result['tts_speech']
             torchaudio.save(output_path, tts_speech, cosyvoice.sample_rate)
             print(f"已保存语音文件: {output_path}")
