@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AudioPlayer from './AudioPlayer';
-import { Message as MessageType, chatAPI } from '../services/api';
+import { Message as MessageType, chatAPI, ttsAPI } from '../services/api';
 import LogoIcon from './LogoIcon';
 import LoginModal from './LoginModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -16,6 +16,12 @@ interface Message {
   };
   finalAudio?: string;
   error?: boolean; // 标记是否是错误消息
+  ttsAudio?: {
+    mp3Url: string;
+    wavUrl: string;
+    text: string;
+  }; // TTS合成的音频
+  confirmingText?: boolean; // 是否正在确认文本
 }
 
 interface AudioPreview {
@@ -42,21 +48,16 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const INITIAL_MESSAGES: Message[] = [
   {
     id: generateId(),
-    content: '欢迎使用魔声AI配音助手！我可以帮您生成高质量的商业英文配音。请告诉我您的配音需求，例如主题、目标受众、风格等，或者直接提供您想要翻译和配音的中文内容。',
+    content: '欢迎使用魔声AI配音助手！我可以帮您生成高质量的中文配音。请输入您需要配音的文本，确认后我将为您生成语音。',
     sender: 'ai'
   }
 ];
 
 // 预设用例
 const PRESET_EXAMPLES = [
-  { title: '企业宣传片配音', desc: '美式口音专业风格' },
-  { title: '教育课程配音', desc: '英式口音清晰风格' },
-  { title: '产品介绍视频', desc: '美式口音活力风格' }
-];
-
-const ACCENT_OPTIONS = [
-  { id: 'american', name: '美式口音', description: '地道流利的美式发音' },
-  { id: 'british', name: '英式口音', description: '标准BBC英式发音' }
+  { title: '企业宣传片配音', desc: '中文专业风格' },
+  { title: '教育课程配音', desc: '中文清晰风格' },
+  { title: '产品介绍视频', desc: '中文活力风格' }
 ];
 
 // 错误消息映射
@@ -69,7 +70,7 @@ const ERROR_MESSAGES: {[key: number]: string} = {
 };
 
 const ChatInterface: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -81,6 +82,8 @@ const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [scriptToConfirm, setScriptToConfirm] = useState<string | null>(null);
   
   // 监听清除会话事件
   useEffect(() => {
@@ -90,6 +93,7 @@ const ChatInterface: React.FC = () => {
       setHasInteracted(false);
       setApiError(null);
       setSelectedAudio(null);
+      setScriptToConfirm(null);
     };
     
     // 监听加载会话事件
@@ -201,7 +205,7 @@ const ChatInterface: React.FC = () => {
   
   // 使用预设示例
   const useExample = (title: string) => {
-    setInputValue(`请帮我生成一段${title}的英文配音`);
+    setInputValue(`请帮我生成一段${title}的配音`);
     if (inputRef.current) {
       inputRef.current.focus();
     }
@@ -249,306 +253,300 @@ const ChatInterface: React.FC = () => {
       await simulateStreamResponse(response.message);
       
     } catch (error: any) {
-      console.error('发送消息错误:', error);
+      console.error('API请求错误:', error);
       
-      // 获取错误状态码和详细信息
-      const errorStatus = error.response?.status || 500;
-      const errorDetail = error.response?.data?.detail || '未知错误，请稍后再试';
-      
-      console.log(`API错误 (${errorStatus}):`, errorDetail);
-      
-      // 设置API错误状态
-      setApiError({
-        status: errorStatus,
-        message: errorDetail
-      });
+      // 处理API错误
+      const status = error.response?.status || 500;
+      const errorMessage = ERROR_MESSAGES[status] || error.message || '发生未知错误';
       
       // 添加错误消息
-      const errorMessage: Message = {
+      const errorMsg: Message = {
         id: generateId(),
-        content: `抱歉，发生了错误 (${errorStatus}): ${errorDetail}`,
+        content: `错误: ${errorMessage}`,
         sender: 'ai',
         error: true
       };
       
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorMsg]);
+      setApiError({ status, message: errorMessage });
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // 确认文本生成TTS
+  const handleConfirmText = async (text: string) => {
+    try {
+      setIsSynthesizing(true);
+      
+      // 更新消息状态，标记为正在确认
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.content === text && msg.sender === 'ai' 
+            ? { ...msg, confirmingText: true } 
+            : msg
+        )
+      );
+      
+      // 调用TTS API合成语音
+      const userId = user && typeof user === 'object' && 'id' in user ? user.id as string : undefined;
+      const response = await ttsAPI.confirmScript(text, userId);
+      
+      // 更新消息，添加合成的音频
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.content === text && msg.sender === 'ai' 
+            ? { 
+                ...msg, 
+                confirmingText: false,
+                ttsAudio: {
+                  mp3Url: response.mp3_url,
+                  wavUrl: response.wav_url,
+                  text: text
+                } 
+              } 
+            : msg
+        )
+      );
+      
+      console.log('语音合成成功:', response);
+      
+      // 触发已保存语音更新事件
+      const event = new CustomEvent('savedAudiosUpdated');
+      window.dispatchEvent(event);
+      
+    } catch (error) {
+      console.error('确认文本生成TTS失败:', error);
+      
+      // 更新消息状态，取消确认状态
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.content === text && msg.sender === 'ai' 
+            ? { ...msg, confirmingText: false } 
+            : msg
+        )
+      );
+      
+      // 显示错误消息
+      const errorMsg: Message = {
+        id: generateId(),
+        content: `语音合成失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        sender: 'ai',
+        error: true
+      };
+      
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsSynthesizing(false);
+    }
+  };
 
-  // 键盘事件处理
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
-  // 处理音频预览选择
-  const handlePreviewSelect = (previewId: string) => {
-    setSelectedAudio(previewId);
-  };
-
-  // 下载音频
-  const downloadAudio = (url: string) => {
-    window.open(url, '_blank');
+  // 渲染消息
+  const renderMessage = (message: Message) => {
+    const isUserMessage = message.sender === 'user';
+    
+    // 聊天气泡样式
+    const bubbleClass = isUserMessage 
+      ? 'bg-primary-100 text-gray-800 border-primary-300 ml-auto' 
+      : 'bg-white text-gray-800 border-gray-200';
+      
+    // 头像样式
+    const avatarClass = isUserMessage
+      ? 'bg-primary-600 order-2'
+      : 'bg-slate-500 order-1';
+    
+    // 获取用户的首字母作为头像内容
+    const getUserInitial = () => {
+      if (user && typeof user === 'object') {
+        if ('name' in user && typeof user.name === 'string' && user.name.length > 0) {
+          return user.name[0].toUpperCase();
+        } else if ('email' in user && typeof user.email === 'string' && user.email.length > 0) {
+          return user.email[0].toUpperCase();
+        }
+      }
+      return '用';
+    };
+    
+    // 头像内容
+    const avatarContent = isUserMessage
+      ? getUserInitial()
+      : 'AI';
+    
+    return (
+      <div key={message.id} className={`flex items-start space-x-2 mb-4 ${isUserMessage ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex items-start space-x-2 ${isUserMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm ${avatarClass}`}>
+            {avatarContent}
+          </div>
+          
+          <div className={`max-w-[80%] md:max-w-[70%] p-3 rounded-lg border ${bubbleClass} ${message.error ? 'bg-red-100 border-red-300 text-red-800' : ''}`}>
+            {message.content.split('\n').map((line, i) => (
+              <React.Fragment key={i}>
+                {line}
+                {i < message.content.split('\n').length - 1 && <br />}
+              </React.Fragment>
+            ))}
+            
+            {/* 语音确认按钮 - 仅对AI消息显示 */}
+            {!isUserMessage && !message.error && !message.ttsAudio && !message.confirmingText && (
+              <div className="mt-2 flex justify-end">
+                <button
+                  onClick={() => handleConfirmText(message.content)}
+                  disabled={isSynthesizing}
+                  className="text-xs px-2 py-1 bg-primary-500 text-white rounded hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSynthesizing ? '合成中...' : '确认生成语音'}
+                </button>
+              </div>
+            )}
+            
+            {/* 语音合成中状态 */}
+            {message.confirmingText && (
+              <div className="mt-2 text-xs text-gray-500 flex items-center">
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                正在生成语音...
+              </div>
+            )}
+            
+            {/* 音频播放器 */}
+            {message.ttsAudio && (
+              <div className="mt-3">
+                <AudioPlayer 
+                  audioUrl={message.ttsAudio.mp3Url} 
+                  onDownload={() => {
+                    // 创建一个下载链接
+                    const link = document.createElement('a');
+                    link.href = message.ttsAudio!.mp3Url;
+                    link.download = `魔声AI语音_${new Date().toISOString().slice(0, 10)}.mp3`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
-      {!hasInteracted ? (
-        // 初始欢迎界面 - 居中显示
-        <div className="w-full h-full flex flex-col items-center justify-center">
-          <div className="w-full max-w-4xl px-4">
-            <div className="text-center mb-10">
-              <LogoIcon className="h-20 w-20 mx-auto text-primary-600 mb-6" />
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">魔声AI配音助手</h1>
-              <p className="text-lg text-gray-600 mx-auto">
-                {messages[0].content}
-              </p>
-            </div>
-
-            {/* 预设示例 */}
-            <div className="mb-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="relative flex flex-col h-full">
+      {/* 聊天头部 */}
+      <div className="p-4 border-b bg-white z-10">
+        <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+          <LogoIcon className="w-6 h-6 mr-2" />
+          魔声AI配音助手
+        </h2>
+      </div>
+      
+      {/* 聊天消息区域 */}
+      <div className="flex-1 overflow-y-auto p-4 pb-20 bg-gray-50">
+        {/* 预设示例卡片，仅在初始状态显示 */}
+        {messages.length === 1 && !hasInteracted && (
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">尝试这些示例：</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {PRESET_EXAMPLES.map((example, index) => (
                 <div 
                   key={index}
                   onClick={() => useExample(example.title)}
-                  className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary-500 hover:shadow-md transition-all"
+                  className="bg-white p-3 rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 cursor-pointer transition-all"
                 >
-                  <h3 className="font-medium text-gray-800">{example.title}</h3>
+                  <h4 className="font-medium text-gray-800">{example.title}</h4>
                   <p className="text-xs text-gray-500 mt-1">{example.desc}</p>
                 </div>
               ))}
             </div>
-            
-            {/* 输入区域 */}
-            <div className="w-full">
-              <div className="flex items-center relative">
-                <textarea
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="输入您的配音需求或中文内容..."
-                  className="chat-input pr-12"
-                  rows={1}
-                  autoFocus
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!inputValue.trim() || isLoading}
-                  className={`absolute right-2 p-2 rounded-full ${
-                    !inputValue.trim() || isLoading
-                      ? 'text-gray-400'
-                      : 'text-primary-600 hover:bg-primary-50'
-                  } transition-colors focus:outline-none`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
-                </button>
+          </div>
+        )}
+        
+        {/* 消息列表 */}
+        {messages.map(renderMessage)}
+        
+        {/* 流式生成中的消息 */}
+        {isStreaming && (
+          <div className="flex items-start space-x-2 mb-4">
+            <div className="flex items-start space-x-2">
+              <div className="w-8 h-8 bg-slate-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                AI
               </div>
-              
-              {/* API状态指示 */}
-              <div className="mt-2 text-xs text-center">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full ${
-                  apiError ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                }`}>
-                  <span className={`w-2 h-2 mr-1 rounded-full ${
-                    apiError ? 'bg-red-500' : 'bg-green-500'
-                  }`}></span>
-                  {apiError ? 'API连接异常' : 'Deepseek-v3 已接入'}
-                </span>
+              <div className="max-w-[80%] md:max-w-[70%] p-3 rounded-lg border bg-white text-gray-800 border-gray-200">
+                {streamingMessage.split('\n').map((line, i) => (
+                  <React.Fragment key={i}>
+                    {line}
+                    {i < streamingMessage.split('\n').length - 1 && <br />}
+                  </React.Fragment>
+                ))}
+                <span className="inline-block ml-1 animate-pulse">▌</span>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        // 聊天界面 - 用户交互后显示
-        <>
-          {/* 消息区域 */}
-          <div className="flex-1 w-full h-full overflow-y-auto scrollbar-thin bg-white">
-            <div className="w-full max-w-3xl mx-auto py-4 px-4">
-              {messages.map((message, index) => (
-                index === 0 ? null : (
-                  <div 
-                    key={message.id}
-                    className={`mb-6 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}
-                  >
-                    {message.sender === 'user' ? (
-                      <div className="inline-block max-w-[90%] md:max-w-[75%]">
-                        <div className="chat-bubble user">
-                          <div className="whitespace-pre-wrap">{message.content}</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-left space-y-3 text-gray-800">
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                        
-                        {/* 音频预览区域 */}
-                        {message.audioPreviews && message.audioPreviews.length > 0 && (
-                          <div className="mt-4 space-y-3">
-                            <h4 className="text-sm font-medium text-gray-700">音频预览:</h4>
-                            <div className="grid grid-cols-1 gap-3">
-                              {message.audioPreviews.map((preview) => (
-                                <div 
-                                  key={preview.id} 
-                                  className={`p-3 rounded-lg border ${selectedAudio === preview.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}
-                                  onClick={() => handlePreviewSelect(preview.id)}
-                                >
-                                  <AudioPlayer 
-                                    audioUrl={preview.url} 
-                                    accent={preview.accent} 
-                                    voiceStyle={preview.voiceStyle} 
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 生成的脚本 */}
-                        {message.generatedScript && (
-                          <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
-                            <div className="mb-2">
-                              <span className="font-medium">英文脚本:</span>
-                              <p className="mt-1 text-gray-800">{message.generatedScript.english}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium">中文原文:</span>
-                              <p className="mt-1 text-gray-600">{message.generatedScript.chinese}</p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 最终音频 */}
-                        {message.finalAudio && (
-                          <div className="mt-4">
-                            <AudioPlayer 
-                              audioUrl={message.finalAudio} 
-                              onDownload={() => downloadAudio(message.finalAudio!)} 
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              ))}
-              
-              {/* 流式生成内容 */}
-              {isStreaming && (
-                <div className="mb-6 text-left">
-                  <div className="text-left space-y-3 text-gray-800">
-                    <div className="whitespace-pre-wrap">{streamingMessage}</div>
-                  </div>
-                </div>
-              )}
-              
-              {/* 加载指示器 */}
-              {isLoading && !isStreaming && (
-                <div className="mb-6 text-left">
-                  <div className="text-left">
-                    <div className="loading-dots">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* API错误提示 */}
-              {apiError && (
-                <div className="text-center py-2 mb-4">
-                  <div className="inline-block px-3 py-1 bg-red-50 text-red-600 text-xs rounded-md">
-                    {apiError.message}
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
-          
-          {/* 输入区域 */}
-          <div className="w-full border-t border-gray-200 bg-white">
-            <div className="w-full max-w-3xl mx-auto p-4">
-              <div className="flex items-center relative">
-                <textarea
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="输入您的配音需求或中文内容..."
-                  className="chat-input pr-12"
-                  rows={1}
-                  disabled={isStreaming}
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!inputValue.trim() || isLoading || isStreaming}
-                  className={`absolute right-2 p-2 rounded-full ${
-                    !inputValue.trim() || isLoading || isStreaming
-                      ? 'text-gray-400'
-                      : 'text-primary-600 hover:bg-primary-50'
-                  } transition-colors focus:outline-none`}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
-                </button>
-              </div>
-              
-              {/* API状态指示 */}
-              <div className="mt-2 text-xs text-center">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full ${
-                  apiError ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                }`}>
-                  <span className={`w-2 h-2 mr-1 rounded-full ${
-                    apiError ? 'bg-red-500' : 'bg-green-500'
-                  }`}></span>
-                  {apiError ? 'API连接异常' : 'Deepseek-v3 已接入'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+        )}
+        
+        {/* 底部参考元素，用于自动滚动 */}
+        <div ref={messagesEndRef} />
+      </div>
       
-      {/* 登录弹窗 */}
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)}
-        onLoginSuccess={() => {
-          setShowLoginModal(false);
-          // 可以在这里添加登录成功后的处理逻辑
-        }}
-      />
+      {/* 输入区域 */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 bg-white border-t">
+        {apiError && (
+          <div className="mb-2 p-2 bg-red-100 border border-red-300 rounded text-sm text-red-800">
+            {apiError.message}
+          </div>
+        )}
+        
+        <form onSubmit={(e) => {e.preventDefault(); handleSend();}} className="flex items-end space-x-2">
+          <textarea
+            ref={inputRef}
+            className="flex-1 border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+            placeholder="输入您想要转换成语音的文本..."
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            rows={2}
+            disabled={isLoading || isStreaming}
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+            disabled={!inputValue.trim() || isLoading || isStreaming}
+          >
+            {isLoading ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              '发送'
+            )}
+          </button>
+        </form>
+      </div>
+      
+      {/* 登录模态框 */}
+      {showLoginModal && (
+        <LoginModal 
+          isOpen={true}
+          onClose={() => setShowLoginModal(false)}
+          onLoginSuccess={() => setShowLoginModal(false)}
+        />
+      )}
     </div>
   );
 };
