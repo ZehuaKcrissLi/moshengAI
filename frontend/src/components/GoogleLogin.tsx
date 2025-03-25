@@ -116,6 +116,7 @@ const GoogleLogin: React.FC = () => {
         window.history.replaceState({}, document.title, cleanUrl);
       }
       
+      // 使用已修改的googleLogin方法，它现在返回一个模拟响应
       const response = await googleLogin(authCode);
       
       // 设置成功状态并显示用户信息
@@ -153,9 +154,14 @@ const GoogleLogin: React.FC = () => {
       }, 3000); // 延长到3秒，确保用户能看到成功消息
     } catch (error: any) {
       console.error('Google登录失败:', error);
-      const errorMessage = error?.response?.data?.detail || '登录处理失败，请重试';
+      const errorMessage = "登录流程已禁用，系统直接使用游客模式";
       setDebugInfo(prev => prev + `\n登录错误: ${errorMessage}`);
       setError(errorMessage);
+      
+      // 即使出错，也重定向回首页并使用游客模式
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
     }
   };
   

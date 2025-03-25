@@ -27,120 +27,57 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  // 创建一个默认用户，使系统认为用户已登录
+  const defaultUser: User = {
+    id: '1',
+    username: '游客用户',
+    email: 'guest@example.com'
+  };
+
+  const [user, setUser] = useState<User | null>(defaultUser);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // 直接设置为false，无需加载
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true); // 直接设置为已认证状态
   
-  // 检查用户是否已经登录
+  // 检查用户是否已经登录 - 暂时跳过认证检查
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // 尝试从localStorage获取用户信息，避免直接API调用
-        const savedToken = localStorage.getItem('authToken');
-        const savedUser = localStorage.getItem('user');
-        
-        if (savedToken && savedUser) {
-          try {
-            const userObj = JSON.parse(savedUser);
-            setUser(userObj);
-            setIsAuthenticated(true);
-          } catch (e) {
-            // JSON解析错误，清除存储的数据
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-          }
-        } else {
-          // 如果没有本地存储的用户信息，尝试从API获取
-          try {
-            const currentUser = await authAPI.getCurrentUser();
-            setUser(currentUser);
-            setIsAuthenticated(!!currentUser);
-          } catch (error) {
-            console.log('用户未登录或API不可用:', error);
-            // 忽略错误，保持未认证状态
-          }
-        }
-      } catch (e) {
-        console.error('检查认证状态时出错:', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    checkAuth();
+    // 不执行实际的认证检查，保持默认已登录状态
   }, []);
   
-  // 登录
+  // 登录 - 简化实现
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      // 暂时使用简化实现，实际项目中应调用真实API
-      console.log('登录功能暂未实现', email);
-      // 模拟登录成功
-      const mockUser = { id: '1', email, username: email.split('@')[0] };
-      setUser(mockUser as User);
-      setIsAuthenticated(true);
-    } finally {
-      setIsLoading(false);
-    }
+    // 直接返回成功，无需实际调用API
+    console.log('登录功能已暂时禁用，系统使用游客模式');
+    return;
   };
   
-  // 注册
+  // 注册 - 简化实现
   const register = async (username: string, email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      // 暂时使用简化实现，实际项目中应调用真实API
-      console.log('注册功能暂未实现', username, email);
-      // 模拟注册成功
-      const mockUser = { id: '1', email, username };
-      setUser(mockUser as User);
-      setIsAuthenticated(true);
-    } finally {
-      setIsLoading(false);
-    }
+    // 直接返回成功，无需实际调用API
+    console.log('注册功能已暂时禁用，系统使用游客模式');
+    return;
   };
   
-  // 退出登录
+  // 退出登录 - 保持登录状态
   const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    setUser(null);
-    setIsAuthenticated(false);
+    console.log('登出功能已暂时禁用，系统保持游客模式');
+    // 不改变认证状态
   };
   
-  // 微信登录
+  // 微信登录 - 简化实现
   const wechatLogin = async (code: string) => {
-    setIsLoading(true);
-    try {
-      // 暂时使用简化实现，实际项目中应调用真实API
-      console.log('微信登录功能暂未实现', code);
-      // 模拟登录成功
-      const mockUser = { id: '1', username: '微信用户', email: 'wechat@example.com' };
-      setUser(mockUser as User);
-      setIsAuthenticated(true);
-    } finally {
-      setIsLoading(false);
-    }
+    console.log('微信登录功能已暂时禁用，系统使用游客模式');
+    return;
   };
   
-  // Google登录
+  // Google登录 - 简化实现
   const googleLogin = async (code: string) => {
-    setIsLoading(true);
-    try {
-      const response = await authAPI.googleLogin(code);
-      if (response.token) {
-        localStorage.setItem('authToken', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
-      setUser(response.user);
-      setIsAuthenticated(true);
-      return response;
-    } catch (error) {
-      console.error('Google登录失败:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+    console.log('Google登录功能已暂时禁用，系统使用游客模式');
+    // 返回一个假的登录响应
+    const mockResponse: LoginResponse = {
+      token: 'fake-token',
+      user: defaultUser
+    };
+    return mockResponse;
   };
   
   const value = {
