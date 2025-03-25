@@ -137,8 +137,27 @@
                     throw new Error(`合成失败: ${response.statusText}`);
                 }
                 
-                const audioBlob = await response.blob();
-                const audioUrl = URL.createObjectURL(audioBlob);
+                // 检查响应类型
+                const contentType = response.headers.get('content-type');
+                let audioUrl;
+                
+                if (contentType && contentType.includes('audio/')) {
+                    // 如果是音频文件，直接创建Blob URL
+                    const audioBlob = await response.blob();
+                    audioUrl = URL.createObjectURL(audioBlob);
+                } else if (contentType && contentType.includes('application/json')) {
+                    // 如果是JSON响应，从中提取URL
+                    const jsonData = await response.json();
+                    if (jsonData.mp3_url) {
+                        audioUrl = jsonData.mp3_url;
+                    } else if (jsonData.wav_url) {
+                        audioUrl = jsonData.wav_url;
+                    } else {
+                        throw new Error('响应中没有包含音频URL');
+                    }
+                } else {
+                    throw new Error(`不支持的响应类型: ${contentType}`);
+                }
                 
                 const audioPlayer = document.getElementById('audio-player');
                 audioPlayer.src = audioUrl;

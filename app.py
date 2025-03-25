@@ -4,6 +4,7 @@ import tempfile
 import uuid
 import json
 import time
+import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -15,7 +16,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-import ffmpeg  # 用于音频格式转换
+
+# 尝试导入ffmpeg，如果失败则使用subprocess调用系统ffmpeg
+try:
+    import ffmpeg
+    USE_FFMPEG_PYTHON = True
+    print("成功导入ffmpeg-python库")
+except ImportError:
+    USE_FFMPEG_PYTHON = False
+    print("警告: 未找到ffmpeg-python库，将使用subprocess调用系统ffmpeg")
 
 # 添加CosyVoice路径
 COSYVOICE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "moshengAI_tts/CosyVoice")
@@ -116,19 +125,27 @@ def convert_wav_to_mp3(wav_path: str, bitrate: str = "256k") -> str:
     """
     mp3_path = wav_path.replace(".wav", ".mp3")
     
-    # 使用ffmpeg进行转换
     try:
-        (
-            ffmpeg
-            .input(wav_path)
-            .output(mp3_path, audio_bitrate=bitrate)
-            .run(quiet=True, overwrite_output=True)
-        )
+        if USE_FFMPEG_PYTHON:
+            # 使用ffmpeg-python库进行转换
+            (
+                ffmpeg
+                .input(wav_path)
+                .output(mp3_path, audio_bitrate=bitrate)
+                .run(quiet=True, overwrite_output=True)
+            )
+        else:
+            # 使用subprocess调用系统ffmpeg
+            cmd = ["ffmpeg", "-i", wav_path, "-b:a", bitrate, "-y", mp3_path]
+            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
         print(f"已将 {wav_path} 转换为 {mp3_path}")
         return mp3_path
     except Exception as e:
         print(f"转换音频格式失败: {str(e)}")
-        raise e
+        # 如果转换失败，返回原始WAV文件路径
+        print("返回原始WAV文件")
+        return wav_path
 
 @app.get("/")
 async def root():
