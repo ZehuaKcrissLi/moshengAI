@@ -4,19 +4,18 @@ import tempfile
 import uuid
 import json
 import time
-import subprocess  # 添加subprocess模块
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
 import numpy as np
 import torch
 import torchaudio
-from fastapi import FastAPI, HTTPException, Form, Response, File, UploadFile, Body
+from fastapi import FastAPI, HTTPException, Form, Response, File, UploadFile, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-# import ffmpeg  # 用于音频格式转换 - 注释掉，改用subprocess调用系统ffmpeg
+import ffmpeg  # 用于音频格式转换
 
 # 添加CosyVoice路径
 COSYVOICE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "moshengAI_tts/CosyVoice")
@@ -46,7 +45,7 @@ app = FastAPI(title="魔声AI语音合成API", description="基于CosyVoice2的�
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -117,10 +116,14 @@ def convert_wav_to_mp3(wav_path: str, bitrate: str = "256k") -> str:
     """
     mp3_path = wav_path.replace(".wav", ".mp3")
     
-    # 使用subprocess调用系统ffmpeg命令
+    # 使用ffmpeg进行转换
     try:
-        cmd = ["ffmpeg", "-i", wav_path, "-b:a", bitrate, "-y", mp3_path]
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (
+            ffmpeg
+            .input(wav_path)
+            .output(mp3_path, audio_bitrate=bitrate)
+            .run(quiet=True, overwrite_output=True)
+        )
         print(f"已将 {wav_path} 转换为 {mp3_path}")
         return mp3_path
     except Exception as e:
@@ -132,7 +135,7 @@ async def root():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.post("/synthesize")
-async def synthesize(text: str = Form(...), voice_type: str = Form("默认")):
+async def synthesize(request: Request, text: str = Form(...), voice_type: str = Form("默认")):
     """
     将文本转换为语音
     
@@ -162,7 +165,22 @@ async def synthesize(text: str = Form(...), voice_type: str = Form("默认")):
         mp3_path = convert_wav_to_mp3(output_path)
         mp3_filename = os.path.basename(mp3_path)
         
-        # 返回WAV和MP3文件的URL
+        # 检查前端请求中的Accept头，判断客户端期望的响应类型
+        accept_header = request.headers.get("accept", "application/json")
+        user_agent = request.headers.get("user-agent", "").lower()
+        
+        print(f"请求头: Accept={accept_header}, User-Agent={user_agent}")
+        
+        # 从HTML页面直接调用时，通常是浏览器请求
+        if 'text/html' in accept_header or ('mozilla' in user_agent or 'chrome' in user_agent or 'safari' in user_agent):
+            print("检测到浏览器请求，直接返回音频文件")
+            return FileResponse(
+                path=mp3_path,
+                filename=mp3_filename,
+                media_type="audio/mpeg"
+            )
+        
+        # 否则返回JSON响应（用于前端应用API调用）
         return JSONResponse({
             "success": True,
             "message": "语音合成成功",
@@ -176,7 +194,7 @@ async def synthesize(text: str = Form(...), voice_type: str = Form("默认")):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"语音合成失败: {str(e)}")
 
-@app.post("/tts/confirm_script")
+@app.post("/confirm_script")
 async def confirm_script(
     text: str = Body(...),
     user_id: str = Body(None),
@@ -244,7 +262,7 @@ async def confirm_script(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"确认脚本失败: {str(e)}")
 
-@app.get("/tts/saved_audios")
+@app.get("/saved_audios")
 async def get_saved_audios():
     """获取所有已保存的音频记录"""
     try:
