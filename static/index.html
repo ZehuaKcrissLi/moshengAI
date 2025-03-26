@@ -88,7 +88,7 @@
     <div class="container">
         <div class="form-group">
             <label for="text">输入文本:</label>
-            <textarea id="text" placeholder="请输入要合成的文本">这是一个测试语音合成的文本</textarea>
+            <textarea id="text" placeholder="请输入要合成的文本">好消息，好消息！魔声AI语音合成全面升级了！促销配音一次搞定，不信你就试试看！全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481</textarea>
         </div>
         <div class="form-group">
             <label for="voice-type">声音类型:</label>
@@ -148,10 +148,14 @@
                 } else if (contentType && contentType.includes('application/json')) {
                     // 如果是JSON响应，从中提取URL
                     const jsonData = await response.json();
+                    console.log('收到的JSON响应:', jsonData);
+                    
                     if (jsonData.mp3_url) {
                         audioUrl = jsonData.mp3_url;
+                        console.log('使用MP3 URL:', audioUrl);
                     } else if (jsonData.wav_url) {
                         audioUrl = jsonData.wav_url;
+                        console.log('使用WAV URL:', audioUrl);
                     } else {
                         throw new Error('响应中没有包含音频URL');
                     }
@@ -160,16 +164,29 @@
                 }
                 
                 const audioPlayer = document.getElementById('audio-player');
+                
+                // 确保URL是以/开头的完整路径
+                if (audioUrl && !audioUrl.startsWith('http') && !audioUrl.startsWith('blob:')) {
+                    if (!audioUrl.startsWith('/')) {
+                        audioUrl = '/' + audioUrl;
+                    }
+                    console.log('最终音频URL:', audioUrl);
+                }
+                
                 audioPlayer.src = audioUrl;
+                audioPlayer.onerror = function(e) {
+                    console.error('音频加载失败:', e);
+                    alert('音频加载失败，请查看控制台获取详细信息');
+                };
                 
                 // 显示音频播放器
                 document.getElementById('audio-container').style.display = 'block';
                 
-                // 自动播放
-                audioPlayer.play();
+                // 不自动播放，让用户手动点击播放
+                // audioPlayer.play();
             } catch (error) {
                 alert(`错误: ${error.message}`);
-                console.error(error);
+                console.error('详细错误:', error);
             } finally {
                 // 隐藏加载动画
                 document.getElementById('loading').style.display = 'none';

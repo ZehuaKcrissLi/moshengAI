@@ -4,9 +4,9 @@ import tempfile
 import uuid
 import json
 import time
-import subprocess
 from pathlib import Path
 from typing import Optional, List, Dict, Any
+import shutil
 
 import numpy as np
 import torch
@@ -16,15 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-
-# 尝试导入ffmpeg，如果失败则使用subprocess调用系统ffmpeg
-try:
-    import ffmpeg
-    USE_FFMPEG_PYTHON = True
-    print("成功导入ffmpeg-python库")
-except ImportError:
-    USE_FFMPEG_PYTHON = False
-    print("警告: 未找到ffmpeg-python库，将使用subprocess调用系统ffmpeg")
+import ffmpeg  # 用于音频格式转换
 
 # 添加CosyVoice路径
 COSYVOICE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "moshengAI_tts/CosyVoice")
@@ -82,6 +74,10 @@ else:
     # 创建一个空的提示音频
     prompt_speech_16k = torch.zeros(16000)
 
+# 定义长文本阈值和分割参数
+MAX_TEXT_LENGTH = 60  # 每段最大字符数
+SPLIT_CHARS = ["。", "！", "？", "；", "，", "、", ".", "!", "?", ";", ","]
+
 class TTSRequest(BaseModel):
     text: str
     voice_type: str = "默认"
@@ -113,6 +109,86 @@ def save_audio_record(audio_record: Dict[str, Any]):
     with open(SAVED_AUDIOS_FILE, 'w', encoding='utf-8') as f:
         json.dump(saved_audios, f, ensure_ascii=False, indent=2)
 
+def split_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> List[str]:
+    """
+    将长文本分割成多个段落
+    
+    Args:
+        text: 要分割的文本
+        max_length: 每段最大字符数
+        
+    Returns:
+        分割后的文本段落列表
+    """
+    if len(text) <= max_length:
+        return [text]
+    
+    segments = []
+    start = 0
+    
+    while start < len(text):
+        # 如果剩余文本长度小于最大长度，直接添加
+        if start + max_length >= len(text):
+            segments.append(text[start:])
+            break
+        
+        # 在最大长度范围内查找分割点
+        end = start + max_length
+        split_pos = -1
+        
+        # 尝试在标点符号处分割
+        for char in SPLIT_CHARS:
+            pos = text.rfind(char, start, end)
+            if pos > split_pos:
+                split_pos = pos
+        
+        # 如果找不到合适的分割点，就在最大长度处强制分割
+        if split_pos == -1 or split_pos <= start:
+            segments.append(text[start:end])
+            start = end
+        else:
+            # 包含分割符号
+            segments.append(text[start:split_pos+1])
+            start = split_pos + 1
+    
+    return segments
+
+def concatenate_audio(audio_files: List[str], output_path: str):
+    """
+    拼接多个音频文件
+    
+    Args:
+        audio_files: 音频文件路径列表
+        output_path: 输出文件路径
+        
+    Returns:
+        拼接后的音频文件路径
+    """
+    if len(audio_files) == 1:
+        # 如果只有一个文件，直接复制
+        shutil.copy(audio_files[0], output_path)
+        return output_path
+    
+    # 加载所有音频文件
+    waveforms = []
+    sample_rate = None
+    
+    for audio_file in audio_files:
+        waveform, sr = torchaudio.load(audio_file)
+        waveforms.append(waveform)
+        if sample_rate is None:
+            sample_rate = sr
+        elif sr != sample_rate:
+            raise ValueError(f"音频采样率不一致: {sr} != {sample_rate}")
+    
+    # 拼接所有音频
+    concatenated = torch.cat(waveforms, dim=1)
+    
+    # 保存拼接后的音频
+    torchaudio.save(output_path, concatenated, sample_rate)
+    
+    return output_path
+
 def convert_wav_to_mp3(wav_path: str, bitrate: str = "256k") -> str:
     """将WAV文件转换为MP3格式
     
@@ -125,83 +201,128 @@ def convert_wav_to_mp3(wav_path: str, bitrate: str = "256k") -> str:
     """
     mp3_path = wav_path.replace(".wav", ".mp3")
     
+    # 使用ffmpeg进行转换
     try:
-        if USE_FFMPEG_PYTHON:
-            # 使用ffmpeg-python库进行转换
-            (
-                ffmpeg
-                .input(wav_path)
-                .output(mp3_path, audio_bitrate=bitrate)
-                .run(quiet=True, overwrite_output=True)
-            )
-        else:
-            # 使用subprocess调用系统ffmpeg
-            cmd = ["ffmpeg", "-i", wav_path, "-b:a", bitrate, "-y", mp3_path]
-            subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
+        (
+            ffmpeg
+            .input(wav_path)
+            .output(mp3_path, audio_bitrate=bitrate)
+            .run(quiet=True, overwrite_output=True)
+        )
         print(f"已将 {wav_path} 转换为 {mp3_path}")
         return mp3_path
     except Exception as e:
         print(f"转换音频格式失败: {str(e)}")
-        # 如果转换失败，返回原始WAV文件路径
-        print("返回原始WAV文件")
-        return wav_path
+        raise e
 
 @app.get("/")
 async def root():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 @app.post("/synthesize")
-async def synthesize(request: Request, text: str = Form(...), voice_type: str = Form("默认")):
+async def synthesize(
+    text: str = Form(...), 
+    voice_type: str = Form("默认"),
+    request: Request = None  # 添加请求对象参数
+):
     """
     将文本转换为语音
     
     参数:
     - text: 要合成的文本
     - voice_type: 声音类型，默认为"默认"
+    - request: 请求对象，用于检测请求源
     
     返回:
-    - 语音文件
+    - 语音文件或包含文件URL的JSON响应
     """
     try:
         print(f"收到合成请求: '{text}', 声音类型: {voice_type}")
         
         # 生成唯一文件名
-        output_filename = f"{uuid.uuid4()}.wav"
-        output_path = os.path.join(OUTPUT_DIR, output_filename)
+        output_id = uuid.uuid4()
+        final_output_path = os.path.join(OUTPUT_DIR, f"{output_id}.wav")
         
-        # 合成语音
-        # 使用zero_shot模式而不是sft模式
-        for i, result in enumerate(cosyvoice.inference_zero_shot(text, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
-            tts_speech = result['tts_speech']
-            torchaudio.save(output_path, tts_speech, cosyvoice.sample_rate)
-            print(f"已保存语音文件: {output_path}")
-            break  # 只保存第一个结果
+        # 分割长文本
+        text_segments = split_text(text)
+        print(f"文本已分割为{len(text_segments)}段")
+        
+        # 临时音频文件路径列表
+        temp_audio_files = []
+        
+        # 逐段合成语音
+        for i, segment in enumerate(text_segments):
+            print(f"开始合成第{i+1}/{len(text_segments)}段: '{segment}'")
+            
+            # 临时文件路径
+            temp_output_path = os.path.join(OUTPUT_DIR, f"{output_id}_part{i}.wav")
+            
+            # 合成语音
+            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
+                tts_speech = result['tts_speech']
+                torchaudio.save(temp_output_path, tts_speech, cosyvoice.sample_rate)
+                print(f"已保存第{i+1}段语音文件: {temp_output_path}")
+                break  # 只保存第一个结果
+            
+            temp_audio_files.append(temp_output_path)
+        
+        # 拼接所有音频段
+        if len(temp_audio_files) > 1:
+            print(f"正在拼接{len(temp_audio_files)}个音频文件...")
+            concatenate_audio(temp_audio_files, final_output_path)
+            print(f"已拼接所有音频段: {final_output_path}")
+        else:
+            # 单段音频直接使用
+            final_output_path = temp_audio_files[0]
         
         # 转换为MP3格式
-        mp3_path = convert_wav_to_mp3(output_path)
+        mp3_path = convert_wav_to_mp3(final_output_path)
         mp3_filename = os.path.basename(mp3_path)
+        wav_filename = os.path.basename(final_output_path)
         
-        # 检查前端请求中的Accept头，判断客户端期望的响应类型
-        accept_header = request.headers.get("accept", "application/json")
-        user_agent = request.headers.get("user-agent", "").lower()
+        # 删除临时文件
+        if len(temp_audio_files) > 1:
+            for temp_file in temp_audio_files:
+                try:
+                    os.remove(temp_file)
+                    print(f"已删除临时文件: {temp_file}")
+                except Exception as e:
+                    print(f"删除临时文件失败: {str(e)}")
         
-        print(f"请求头: Accept={accept_header}, User-Agent={user_agent}")
+        # 检查请求头，判断是来自浏览器的直接请求还是API调用
+        user_agent = request.headers.get("user-agent", "").lower() if request else ""
+        accept_header = request.headers.get("accept", "") if request else ""
         
-        # 从HTML页面直接调用时，通常是浏览器请求
-        if 'text/html' in accept_header or ('mozilla' in user_agent or 'chrome' in user_agent or 'safari' in user_agent):
-            print("检测到浏览器请求，直接返回音频文件")
-            return FileResponse(
-                path=mp3_path,
-                filename=mp3_filename,
-                media_type="audio/mpeg"
-            )
+        print(f"User-Agent: {user_agent}")
+        print(f"Accept: {accept_header}")
         
-        # 否则返回JSON响应（用于前端应用API调用）
+        # 从HTML页面直接调用时，通常是浏览器请求，返回直接的文件
+        if request and 'text/html' in accept_header or ('mozilla' in user_agent or 'chrome' in user_agent or 'safari' in user_agent):
+            if 'application/json' in accept_header:
+                # 如果请求明确要求JSON响应，则优先返回JSON
+                print("检测到API请求，返回JSON响应")
+                return JSONResponse({
+                    "success": True,
+                    "message": "语音合成成功",
+                    "wav_url": f"/output/{wav_filename}",
+                    "mp3_url": f"/output/{mp3_filename}",
+                    "text": text
+                })
+            else:
+                # 返回直接的音频文件
+                print("检测到浏览器请求，直接返回音频文件")
+                return FileResponse(
+                    path=mp3_path,
+                    filename=mp3_filename,
+                    media_type="audio/mpeg"
+                )
+        
+        # 否则返回JSON响应（用于API调用）
+        print("返回JSON响应")
         return JSONResponse({
             "success": True,
             "message": "语音合成成功",
-            "wav_url": f"/output/{output_filename}",
+            "wav_url": f"/output/{wav_filename}",
             "mp3_url": f"/output/{mp3_filename}",
             "text": text
         })
@@ -233,19 +354,53 @@ async def confirm_script(
         
         # 生成唯一文件名和ID
         audio_id = str(uuid.uuid4())
-        wav_filename = f"{audio_id}.wav"
-        wav_path = os.path.join(CLIENT_OUTPUT_DIR, wav_filename)
+        final_wav_path = os.path.join(CLIENT_OUTPUT_DIR, f"{audio_id}.wav")
         
-        # 合成语音
-        for i, result in enumerate(cosyvoice.inference_zero_shot(text, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
-            tts_speech = result['tts_speech']
-            torchaudio.save(wav_path, tts_speech, cosyvoice.sample_rate)
-            print(f"已保存最终语音文件: {wav_path}")
-            break  # 只保存第一个结果
+        # 分割长文本
+        text_segments = split_text(text)
+        print(f"文本已分割为{len(text_segments)}段")
+        
+        # 临时音频文件路径列表
+        temp_audio_files = []
+        
+        # 逐段合成语音
+        for i, segment in enumerate(text_segments):
+            print(f"开始合成第{i+1}/{len(text_segments)}段: '{segment}'")
+            
+            # 临时文件路径
+            temp_output_path = os.path.join(CLIENT_OUTPUT_DIR, f"{audio_id}_part{i}.wav")
+            
+            # 合成语音
+            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
+                tts_speech = result['tts_speech']
+                torchaudio.save(temp_output_path, tts_speech, cosyvoice.sample_rate)
+                print(f"已保存第{i+1}段语音文件: {temp_output_path}")
+                break  # 只保存第一个结果
+            
+            temp_audio_files.append(temp_output_path)
+        
+        # 拼接所有音频段
+        if len(temp_audio_files) > 1:
+            print(f"正在拼接{len(temp_audio_files)}个音频文件...")
+            concatenate_audio(temp_audio_files, final_wav_path)
+            print(f"已拼接所有音频段: {final_wav_path}")
+        else:
+            # 单段音频直接使用
+            final_wav_path = temp_audio_files[0]
         
         # 转换为MP3格式
-        mp3_path = convert_wav_to_mp3(wav_path)
+        mp3_path = convert_wav_to_mp3(final_wav_path)
         mp3_filename = os.path.basename(mp3_path)
+        wav_filename = os.path.basename(final_wav_path)
+        
+        # 删除临时文件
+        if len(temp_audio_files) > 1:
+            for temp_file in temp_audio_files:
+                try:
+                    os.remove(temp_file)
+                    print(f"已删除临时文件: {temp_file}")
+                except Exception as e:
+                    print(f"删除临时文件失败: {str(e)}")
         
         # 创建记录
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -253,7 +408,7 @@ async def confirm_script(
             "id": audio_id,
             "text": text,
             "timestamp": timestamp,
-            "wav_path": wav_path,
+            "wav_path": final_wav_path,
             "mp3_path": mp3_path,
             "wav_url": f"/client_output/{wav_filename}",
             "mp3_url": f"/client_output/{mp3_filename}",
