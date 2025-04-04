@@ -4,6 +4,7 @@ import tempfile
 import uuid
 import json
 import time
+import re
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import shutil
@@ -65,7 +66,9 @@ print("模型加载成功！")
 
 # 加载示例音频作为提示
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/zero_shot_prompt.wav")
-PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/quanyoujiaju.wav")
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/quanyoujiaju.wav")
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/qiaodantiyu.mp3") #乔丹体育盛大开业，全场鞋服四折起，精选款运动鞋买一送一，进店选购更有好礼相送！
+PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/toulan_26s.mp3")
 if os.path.exists(PROMPT_PATH):
     prompt_speech_16k = load_wav(PROMPT_PATH, 16000)
     print(f"已加载提示音频: {PROMPT_PATH}")
@@ -76,7 +79,12 @@ else:
 
 # 定义长文本阈值和分割参数
 MAX_TEXT_LENGTH = 60  # 每段最大字符数
-SPLIT_CHARS = ["。", "！", "？", "；", "，", "、", ".", "!", "?", ";", ","]
+# 中文分割符号
+CHINESE_SPLIT_CHARS = ["。", "！", "？", "；", "，", "、"]
+# 英文分割符号
+ENGLISH_SPLIT_CHARS = [".", "!", "?", ";", ",", ":", "-", ")"]
+# 通用分割符号
+COMMON_SPLIT_CHARS = [".", "!", "?", ";", ","]
 
 class TTSRequest(BaseModel):
     text: str
@@ -109,9 +117,24 @@ def save_audio_record(audio_record: Dict[str, Any]):
     with open(SAVED_AUDIOS_FILE, 'w', encoding='utf-8') as f:
         json.dump(saved_audios, f, ensure_ascii=False, indent=2)
 
+def is_chinese_text(text: str) -> bool:
+    """
+    判断文本是否主要由中文组成
+    
+    Args:
+        text: 需要判断的文本
+        
+    Returns:
+        如果文本主要由中文组成则返回True，否则返回False
+    """
+    # 中文字符的Unicode范围大致是\u4e00-\u9fff
+    chinese_chars = re.findall(r'[\u4e00-\u9fff]', text)
+    # 如果中文字符占比超过30%，则认为是中文文本
+    return len(chinese_chars) / len(text) > 0.3 if text else False
+
 def split_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> List[str]:
     """
-    将长文本分割成多个段落
+    智能分割文本，根据文本语言选择不同的分割策略
     
     Args:
         text: 要分割的文本
@@ -123,6 +146,26 @@ def split_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> List[str]:
     if len(text) <= max_length:
         return [text]
     
+    # 判断文本主要语言
+    is_chinese = is_chinese_text(text)
+    print(f"检测到{'中文' if is_chinese else '英文'}文本")
+    
+    if is_chinese:
+        return split_chinese_text(text, max_length)
+    else:
+        return split_english_text(text, max_length)
+
+def split_chinese_text(text: str, max_length: int) -> List[str]:
+    """
+    按中文标点符号和字符长度分割中文文本
+    
+    Args:
+        text: 要分割的中文文本
+        max_length: 每段最大字符数
+        
+    Returns:
+        分割后的文本段落列表
+    """
     segments = []
     start = 0
     
@@ -137,12 +180,19 @@ def split_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> List[str]:
         split_pos = -1
         
         # 尝试在标点符号处分割
-        for char in SPLIT_CHARS:
+        for char in CHINESE_SPLIT_CHARS:
             pos = text.rfind(char, start, end)
             if pos > split_pos:
                 split_pos = pos
         
-        # 如果找不到合适的分割点，就在最大长度处强制分割
+        # 如果找不到合适的中文分割点，尝试通用分割符
+        if split_pos == -1 or split_pos <= start:
+            for char in COMMON_SPLIT_CHARS:
+                pos = text.rfind(char, start, end)
+                if pos > split_pos:
+                    split_pos = pos
+        
+        # 如果仍找不到合适的分割点，就在最大长度处强制分割
         if split_pos == -1 or split_pos <= start:
             segments.append(text[start:end])
             start = end
@@ -150,6 +200,86 @@ def split_text(text: str, max_length: int = MAX_TEXT_LENGTH) -> List[str]:
             # 包含分割符号
             segments.append(text[start:split_pos+1])
             start = split_pos + 1
+    
+    return segments
+
+def split_english_text(text: str, max_length: int) -> List[str]:
+    """
+    按英文句子或短语边界分割英文文本
+    
+    Args:
+        text: 要分割的英文文本
+        max_length: 每段最大字符数
+        
+    Returns:
+        分割后的文本段落列表
+    """
+    segments = []
+    start = 0
+    
+    while start < len(text):
+        # 如果剩余文本长度小于最大长度，直接添加
+        if start + max_length >= len(text):
+            segments.append(text[start:])
+            break
+        
+        end = start + max_length
+        
+        # 1. 尝试在句子边界分割 (., !, ?)
+        # 先查找句号、感叹号和问号
+        sentence_end = -1
+        for end_char in ['.', '!', '?']:
+            # 找到这些符号后面跟着空格或引号的位置
+            for match in re.finditer(f'\\{end_char}[ "\']', text[start:end]):
+                pos = start + match.start()
+                if pos > sentence_end:
+                    sentence_end = pos
+        
+        if sentence_end > start:
+            # 找到句子边界，包括标点符号
+            segments.append(text[start:sentence_end+1])
+            start = sentence_end + 1
+            # 跳过可能的空格
+            while start < len(text) and text[start].isspace():
+                start += 1
+            continue
+        
+        # 2. 尝试在从句或短语边界分割 (,, ;, :, -)
+        phrase_end = -1
+        for end_char in [',', ';', ':', '-', ')']:
+            pos = text.rfind(end_char, start, end)
+            if pos > phrase_end:
+                phrase_end = pos
+        
+        if phrase_end > start:
+            # 找到短语边界，包括标点符号
+            segments.append(text[start:phrase_end+1])
+            start = phrase_end + 1
+            # 跳过可能的空格
+            while start < len(text) and text[start].isspace():
+                start += 1
+            continue
+        
+        # 3. 尝试在单词边界分割
+        # 在最大长度之前找到最后一个单词边界（空格）
+        word_end = text.rfind(' ', start, end)
+        
+        if word_end > start:
+            # 找到单词边界
+            segments.append(text[start:word_end])
+            start = word_end + 1
+        else:
+            # 如果没有找到任何适合的分割点，只能强制分割
+            # 但为了避免分割单词，我们向前查找直到找到单词起始处
+            # 先向后找一个完整单词的结尾
+            word_match = re.search(r'\b\w+\b', text[end:])
+            if word_match and word_match.start() + end < len(text):
+                segments.append(text[start:end + word_match.start()])
+                start = end + word_match.start()
+            else:
+                # 实在没办法，只能按长度截断
+                segments.append(text[start:end])
+                start = end
     
     return segments
 
@@ -258,7 +388,7 @@ async def synthesize(
             temp_output_path = os.path.join(OUTPUT_DIR, f"{output_id}_part{i}.wav")
             
             # 合成语音
-            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
+            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, "Please select your corresponding gray color according to the screen color distribution, You can get points by stepping on your own color square.When the red bomb appears, you can step on your own color square first, and then activate the bomb to eliminate the opponent's color square. Note that the color square eliminated by the bomb will deduct the corresponding score.", prompt_speech_16k, stream=False)):
                 tts_speech = result['tts_speech']
                 torchaudio.save(temp_output_path, tts_speech, cosyvoice.sample_rate)
                 print(f"已保存第{i+1}段语音文件: {temp_output_path}")
