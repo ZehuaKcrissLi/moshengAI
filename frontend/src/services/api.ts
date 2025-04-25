@@ -247,6 +247,20 @@ export const chatAPI = {
       console.error('聊天API错误:', error);
       throw error;
     }
+  },
+  
+  // 根据文本推荐音色
+  recommendVoiceStyles: async (text: string, count: number = 3) => {
+    try {
+      const response = await api.post('/chat/recommend_voice_styles', {
+        text,
+        count
+      });
+      return response.data;
+    } catch (error) {
+      console.error('推荐音色错误:', error);
+      throw error;
+    }
   }
 };
 
@@ -359,83 +373,7 @@ export const ttsAPI = {
       console.error('确认脚本失败:', error);
       throw error;
     }
-  },
-
-  // 分析文稿
-  analyzeScript: async (text: string): Promise<ScriptAnalysisResponse> => {
-    try {
-      const response = await api.post('/chat/analyze_script', {
-        text
-      });
-      return response.data;
-    } catch (error) {
-      console.error('文稿分析失败:', error);
-      throw error;
-    }
-  },
-
-  // 推荐音色
-  recommendVoices: async (
-    style_tags: string[],
-    gender?: string,
-    count: number = 3
-  ): Promise<RecommendedVoicesResponse> => {
-    try {
-      const response = await api.post('/chat/recommend_voices', {
-        style_tags,
-        gender,
-        count
-      });
-      return response.data;
-    } catch (error) {
-      console.error('推荐音色失败:', error);
-      throw error;
-    }
-  },
-
-  // 加载语音预览
-  getVoicePreview: async (text: string, gender: string, voice_label: string): Promise<string> => {
-    try {
-      const formData = new FormData();
-      formData.append('text', text);
-      formData.append('gender', gender);
-      formData.append('voice_label', voice_label);
-
-      const response = await api.post('/synthesize', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json'
-        }
-      });
-      
-      return response.data.mp3_url;
-    } catch (error) {
-      console.error('获取语音预览失败:', error);
-      throw error;
-    }
   }
 };
-
-// 新增接口定义
-export interface ScriptAnalysisResponse {
-  original_text: string;
-  standardized_text: string;
-  recommended_style_tags: string[];
-  ai_message: string;
-}
-
-export interface RecommendedVoicesResponse {
-  success: boolean;
-  recommended_voices: {
-    [gender: string]: string[];
-  };
-  style_tags: string[];
-}
-
-export interface VoicePreview {
-  gender: string;
-  voice_label: string;
-  audio_url: string;
-}
 
 export default api; 

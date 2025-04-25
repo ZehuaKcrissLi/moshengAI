@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AudioPlayer from './AudioPlayer';
-import { Message as MessageType, chatAPI } from '../services/api';
+import { Message as MessageType, chatAPI, ttsAPI } from '../services/api';
 import LogoIcon from './LogoIcon';
 import LoginModal from './LoginModal';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useAuth } from '../contexts/AuthContext';
 
 interface Message {
@@ -16,6 +17,11 @@ interface Message {
   };
   finalAudio?: string;
   error?: boolean; // 标记是否是错误消息
+  formattedText?: string; // 存储格式化后的文本
+  recommendedVoices?: { // 添加推荐音色
+    male: VoicePreview[];
+    female: VoicePreview[];
+  };
 }
 
 interface AudioPreview {
@@ -23,6 +29,15 @@ interface AudioPreview {
   url: string;
   accent: string;
   voiceStyle: string;
+}
+
+// 语音预览数据结构
+interface VoicePreview {
+  id: string;
+  label: string;
+  gender: string;
+  audioUrl?: string;
+  isLoading?: boolean;
 }
 
 // 将前端Message格式转换为API Message格式
@@ -54,20 +69,6 @@ const PRESET_EXAMPLES = [
   { title: '产品介绍视频', desc: '美式口音活力风格' }
 ];
 
-const ACCENT_OPTIONS = [
-  { id: 'american', name: '美式口音', description: '地道流利的美式发音' },
-  { id: 'british', name: '英式口音', description: '标准BBC英式发音' }
-];
-
-// 错误消息映射
-const ERROR_MESSAGES: {[key: number]: string} = {
-  402: "DeepSeek API密钥无效或额度不足，请检查API密钥或充值账户。",
-  404: "API服务不可用，请检查后端服务是否正常运行。",
-  429: "请求过于频繁，请稍后再试。",
-  500: "服务器处理请求时出错，请稍后再试。",
-  503: "服务暂时不可用，请稍后再试。"
-};
-
 const ChatInterface: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
@@ -81,6 +82,9 @@ const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState<VoicePreview | null>(null);
+  const [isRecommendingVoices, setIsRecommendingVoices] = useState(false);
   
   // 监听清除会话事件
   useEffect(() => {
@@ -200,14 +204,242 @@ const ChatInterface: React.FC = () => {
   };
   
   // 使用预设示例
-  const useExample = (title: string) => {
+  const handleUseExample = (title: string) => {
     setInputValue(`请帮我生成一段${title}的英文配音`);
     if (inputRef.current) {
       inputRef.current.focus();
     }
   };
 
-  // 处理消息发送
+  // 提取DeepSeek可能提供的格式化文本
+  const extractFormattedText = (message: string): string | null => {
+    // 查找三个反引号之间的文本块
+    const codeBlockMatch = message.match(/```\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch && codeBlockMatch[1]) {
+      return codeBlockMatch[1].trim();
+    }
+    
+    // 检查是否有引用样式的文本
+    const quoteMatch = message.match(/>\s*([\s\S]*?)(\n\n|$)/);
+    if (quoteMatch && quoteMatch[1]) {
+      return quoteMatch[1].trim();
+    }
+    
+    return null;
+  };
+
+  // 处理确认文本生成音频
+  const handleConfirmText = async (text: string, messageId: string) => {
+    setIsRecommendingVoices(true);
+    
+    try {
+      // 调用API获取推荐音色
+      const recommendResult = await chatAPI.recommendVoiceStyles(text);
+      console.log('音色推荐结果:', recommendResult);
+      
+      if (recommendResult.success) {
+        // 构建音色预览数据
+        const maleVoices: VoicePreview[] = recommendResult.male_voices.map((voice: string) => ({
+          id: `male-${voice}`,
+          label: voice,
+          gender: '男声',
+          isLoading: false
+        }));
+        
+        const femaleVoices: VoicePreview[] = recommendResult.female_voices.map((voice: string) => ({
+          id: `female-${voice}`,
+          label: voice,
+          gender: '女声',
+          isLoading: false
+        }));
+        
+        // 更新消息对象，添加推荐音色
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === messageId 
+              ? { 
+                  ...msg, 
+                  formattedText: text,
+                  recommendedVoices: {
+                    male: maleVoices,
+                    female: femaleVoices
+                  }
+                } 
+              : msg
+          )
+        );
+      } else {
+        throw new Error('获取推荐音色失败');
+      }
+    } catch (error: unknown) {
+      console.error('推荐音色错误:', error);
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      
+      const aiMessage: Message = {
+        id: generateId(),
+        content: `抱歉，获取推荐音色时出错: ${errorMessage}`,
+        sender: 'ai',
+        error: true
+      };
+      
+      setMessages(prev => [...prev, aiMessage]);
+    } finally {
+      setIsRecommendingVoices(false);
+    }
+  };
+  
+  // 处理试听音色
+  const handlePreviewVoice = async (voice: VoicePreview, messageId: string) => {
+    // 设置当前选中的音色
+    setSelectedVoice(voice);
+    
+    // 在messages中找到对应的消息和格式化文本
+    const message = messages.find(msg => msg.id === messageId);
+    if (!message || !message.formattedText) return;
+    
+    // 更新消息中音色的加载状态
+    setMessages(prev => 
+      prev.map(msg => {
+        if (msg.id === messageId && msg.recommendedVoices) {
+          const updatedMale = msg.recommendedVoices.male.map(v => 
+            v.id === voice.id ? {...v, isLoading: true} : v
+          );
+          const updatedFemale = msg.recommendedVoices.female.map(v => 
+            v.id === voice.id ? {...v, isLoading: true} : v
+          );
+          
+          return {
+            ...msg,
+            recommendedVoices: {
+              male: updatedMale,
+              female: updatedFemale
+            }
+          };
+        }
+        return msg;
+      })
+    );
+    
+    try {
+      // 确定性别和音色标签
+      const gender = voice.gender;
+      const voiceLabel = voice.label;
+      
+      // 调用TTS API合成语音
+      const response = await ttsAPI.synthesize(message.formattedText, gender, voiceLabel);
+      console.log('语音合成结果:', response);
+      
+      if (response.success) {
+        // 更新音色的音频URL
+        setMessages(prev => 
+          prev.map(msg => {
+            if (msg.id === messageId && msg.recommendedVoices) {
+              const updatedMale = msg.recommendedVoices.male.map(v => 
+                v.id === voice.id ? {...v, audioUrl: response.mp3_url, isLoading: false} : v
+              );
+              const updatedFemale = msg.recommendedVoices.female.map(v => 
+                v.id === voice.id ? {...v, audioUrl: response.mp3_url, isLoading: false} : v
+              );
+              
+              return {
+                ...msg,
+                recommendedVoices: {
+                  male: updatedMale,
+                  female: updatedFemale
+                }
+              };
+            }
+            return msg;
+          })
+        );
+      } else {
+        throw new Error('语音合成失败');
+      }
+    } catch (error: unknown) {
+      console.error('语音合成错误:', error);
+      
+      // 恢复音色的加载状态
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.id === messageId && msg.recommendedVoices) {
+            const updatedMale = msg.recommendedVoices.male.map(v => 
+              v.id === voice.id ? {...v, isLoading: false} : v
+            );
+            const updatedFemale = msg.recommendedVoices.female.map(v => 
+              v.id === voice.id ? {...v, isLoading: false} : v
+            );
+            
+            return {
+              ...msg,
+              recommendedVoices: {
+                male: updatedMale,
+                female: updatedFemale
+              }
+            };
+          }
+          return msg;
+        })
+      );
+      
+      // 显示错误消息
+      const errorMessage: Message = {
+        id: generateId(),
+        content: `试听语音时出错: ${error instanceof Error ? error.message : '未知错误'}`,
+        sender: 'ai',
+        error: true
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+  
+  // 处理确认使用音色
+  const handleConfirmVoice = async (voice: VoicePreview, messageId: string) => {
+    // 在messages中找到对应的消息和格式化文本
+    const message = messages.find(msg => msg.id === messageId);
+    if (!message || !message.formattedText) return;
+    
+    setIsGeneratingVoice(true);
+    
+    try {
+      // 确定性别和音色标签
+      const gender = voice.gender;
+      const voiceLabel = voice.label;
+      
+      // 调用确认API生成最终音频
+      const response = await ttsAPI.confirmScript(message.formattedText, gender, voiceLabel);
+      console.log('确认生成结果:', response);
+      
+      if (response.success) {
+        // 添加确认成功的消息
+        const aiMessage: Message = {
+          id: generateId(),
+          content: `配音已生成完成，您可以点击下方播放按钮收听。`,
+          sender: 'ai',
+          finalAudio: response.mp3_url
+        };
+        
+        setMessages(prev => [...prev, aiMessage]);
+      } else {
+        throw new Error('确认生成失败');
+      }
+    } catch (error: unknown) {
+      console.error('确认生成错误:', error);
+      
+      const errorMessage: Message = {
+        id: generateId(),
+        content: `确认生成时出错: ${error instanceof Error ? error.message : '未知错误'}`,
+        sender: 'ai',
+        error: true
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsGeneratingVoice(false);
+    }
+  };
+
+  // 处理消息发送（修改对提取格式化文本的处理）
   const handleSend = async () => {
     if (!inputValue.trim() || isLoading || isStreaming) return;
     
@@ -247,15 +479,19 @@ const ChatInterface: React.FC = () => {
       
       console.log('API响应:', response);
       
+      // 提取可能包含的格式化文本是在renderAIMessage中直接使用的
+      // 不需要存储在组件状态中
+      
       // 流式生成响应
       await simulateStreamResponse(response.message);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('发送消息错误:', error);
       
       // 获取错误状态码和详细信息
-      const errorStatus = error.response?.status || 500;
-      const errorDetail = error.response?.data?.detail || '未知错误，请稍后再试';
+      const errorResponse = error as { response?: { status?: number, data?: { detail?: string } } };
+      const errorStatus = errorResponse.response?.status || 500;
+      const errorDetail = errorResponse.response?.data?.detail || '未知错误，请稍后再试';
       
       console.log(`API错误 (${errorStatus}):`, errorDetail);
       
@@ -297,6 +533,191 @@ const ChatInterface: React.FC = () => {
     window.open(url, '_blank');
   };
 
+  // 在渲染AI消息部分添加对音色推荐和预览的支持
+  const renderAIMessage = (message: Message) => {
+    return (
+      <div className="text-left space-y-3 text-gray-800">
+        <div className="whitespace-pre-wrap">{message.content}</div>
+        
+        {/* 格式化文本确认按钮 */}
+        {extractFormattedText(message.content) && !message.formattedText && (
+          <div className="mt-4">
+            <button
+              onClick={() => handleConfirmText(extractFormattedText(message.content)!, message.id)}
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              disabled={isRecommendingVoices}
+            >
+              {isRecommendingVoices ? '正在分析文本内容...' : '确认使用此文本合成语音'}
+            </button>
+          </div>
+        )}
+        
+        {/* 推荐音色区域 */}
+        {message.recommendedVoices && (
+          <div className="mt-6">
+            <h4 className="text-base font-medium mb-2">推荐音色</h4>
+            
+            {/* 男声区域 */}
+            <div className="mb-4">
+              <h5 className="text-sm font-medium mb-2 text-gray-700">男声</h5>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {message.recommendedVoices.male.map(voice => (
+                  <div 
+                    key={voice.id}
+                    className={`p-3 rounded-lg border ${
+                      selectedVoice?.id === voice.id 
+                        ? 'border-primary-500 bg-primary-50' 
+                        : 'border-gray-200 hover:border-primary-300'
+                    } cursor-pointer transition-colors`}
+                  >
+                    <div className="font-medium text-gray-800 mb-2">{voice.label}</div>
+                    
+                    {/* 音频播放区域 */}
+                    {voice.audioUrl ? (
+                      <div className="mb-2">
+                        <audio 
+                          src={voice.audioUrl} 
+                          controls 
+                          className="w-full h-8"
+                        />
+                      </div>
+                    ) : (
+                      <div className="mb-2 py-2 text-center text-sm text-gray-500">
+                        {voice.isLoading ? '加载中...' : '点击试听'}
+                      </div>
+                    )}
+                    
+                    {/* 按钮区域 */}
+                    <div className="flex space-x-2 mt-2">
+                      <button
+                        onClick={() => handlePreviewVoice(voice, message.id)}
+                        className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 focus:outline-none"
+                        disabled={voice.isLoading}
+                      >
+                        {voice.isLoading ? '生成中...' : (voice.audioUrl ? '重新试听' : '试听')}
+                      </button>
+                      
+                      {voice.audioUrl && (
+                        <button
+                          onClick={() => handleConfirmVoice(voice, message.id)}
+                          className="flex-1 px-2 py-1 text-xs bg-primary-100 text-primary-800 rounded hover:bg-primary-200 focus:outline-none"
+                          disabled={isGeneratingVoice}
+                        >
+                          使用
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* 女声区域 */}
+            <div>
+              <h5 className="text-sm font-medium mb-2 text-gray-700">女声</h5>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {message.recommendedVoices.female.map(voice => (
+                  <div 
+                    key={voice.id}
+                    className={`p-3 rounded-lg border ${
+                      selectedVoice?.id === voice.id 
+                        ? 'border-primary-500 bg-primary-50' 
+                        : 'border-gray-200 hover:border-primary-300'
+                    } cursor-pointer transition-colors`}
+                  >
+                    <div className="font-medium text-gray-800 mb-2">{voice.label}</div>
+                    
+                    {/* 音频播放区域 */}
+                    {voice.audioUrl ? (
+                      <div className="mb-2">
+                        <audio 
+                          src={voice.audioUrl} 
+                          controls 
+                          className="w-full h-8"
+                        />
+                      </div>
+                    ) : (
+                      <div className="mb-2 py-2 text-center text-sm text-gray-500">
+                        {voice.isLoading ? '加载中...' : '点击试听'}
+                      </div>
+                    )}
+                    
+                    {/* 按钮区域 */}
+                    <div className="flex space-x-2 mt-2">
+                      <button
+                        onClick={() => handlePreviewVoice(voice, message.id)}
+                        className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 focus:outline-none"
+                        disabled={voice.isLoading}
+                      >
+                        {voice.isLoading ? '生成中...' : (voice.audioUrl ? '重新试听' : '试听')}
+                      </button>
+                      
+                      {voice.audioUrl && (
+                        <button
+                          onClick={() => handleConfirmVoice(voice, message.id)}
+                          className="flex-1 px-2 py-1 text-xs bg-primary-100 text-primary-800 rounded hover:bg-primary-200 focus:outline-none"
+                          disabled={isGeneratingVoice}
+                        >
+                          使用
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 音频预览区域 */}
+        {message.audioPreviews && message.audioPreviews.length > 0 && (
+          <div className="mt-4 space-y-3">
+            <h4 className="text-sm font-medium text-gray-700">音频预览:</h4>
+            <div className="grid grid-cols-1 gap-3">
+              {message.audioPreviews.map((preview) => (
+                <div 
+                  key={preview.id} 
+                  className={`p-3 rounded-lg border ${selectedAudio === preview.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}
+                  onClick={() => handlePreviewSelect(preview.id)}
+                >
+                  <AudioPlayer 
+                    audioUrl={preview.url} 
+                    accent={preview.accent} 
+                    voiceStyle={preview.voiceStyle} 
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* 生成的脚本 */}
+        {message.generatedScript && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
+            <div className="mb-2">
+              <span className="font-medium">英文脚本:</span>
+              <p className="mt-1 text-gray-800">{message.generatedScript.english}</p>
+            </div>
+            <div>
+              <span className="font-medium">中文原文:</span>
+              <p className="mt-1 text-gray-600">{message.generatedScript.chinese}</p>
+            </div>
+          </div>
+        )}
+        
+        {/* 最终音频 */}
+        {message.finalAudio && (
+          <div className="mt-4">
+            <AudioPlayer 
+              audioUrl={message.finalAudio} 
+              onDownload={() => downloadAudio(message.finalAudio!)} 
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {!hasInteracted ? (
@@ -316,7 +737,7 @@ const ChatInterface: React.FC = () => {
               {PRESET_EXAMPLES.map((example, index) => (
                 <div 
                   key={index}
-                  onClick={() => useExample(example.title)}
+                  onClick={() => handleUseExample(example.title)}
                   className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary-500 hover:shadow-md transition-all"
                 >
                   <h3 className="font-medium text-gray-800">{example.title}</h3>
@@ -397,55 +818,7 @@ const ChatInterface: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-left space-y-3 text-gray-800">
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                        
-                        {/* 音频预览区域 */}
-                        {message.audioPreviews && message.audioPreviews.length > 0 && (
-                          <div className="mt-4 space-y-3">
-                            <h4 className="text-sm font-medium text-gray-700">音频预览:</h4>
-                            <div className="grid grid-cols-1 gap-3">
-                              {message.audioPreviews.map((preview) => (
-                                <div 
-                                  key={preview.id} 
-                                  className={`p-3 rounded-lg border ${selectedAudio === preview.id ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}
-                                  onClick={() => handlePreviewSelect(preview.id)}
-                                >
-                                  <AudioPlayer 
-                                    audioUrl={preview.url} 
-                                    accent={preview.accent} 
-                                    voiceStyle={preview.voiceStyle} 
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 生成的脚本 */}
-                        {message.generatedScript && (
-                          <div className="mt-4 p-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
-                            <div className="mb-2">
-                              <span className="font-medium">英文脚本:</span>
-                              <p className="mt-1 text-gray-800">{message.generatedScript.english}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium">中文原文:</span>
-                              <p className="mt-1 text-gray-600">{message.generatedScript.chinese}</p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 最终音频 */}
-                        {message.finalAudio && (
-                          <div className="mt-4">
-                            <AudioPlayer 
-                              audioUrl={message.finalAudio} 
-                              onDownload={() => downloadAudio(message.finalAudio!)} 
-                            />
-                          </div>
-                        )}
-                      </div>
+                      renderAIMessage(message)
                     )}
                   </div>
                 )
