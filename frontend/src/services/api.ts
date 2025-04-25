@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // API基础URL
 // 优先使用环境变量中的API基础URL，如果没有则使用默认值
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 console.log('当前API基础URL:', API_BASE_URL);
 
 // 创建一个axios实例
