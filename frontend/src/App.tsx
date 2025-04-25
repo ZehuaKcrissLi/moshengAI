@@ -7,6 +7,7 @@ import LogoIcon from './components/LogoIcon'
 import WechatLogin from './components/WechatLogin'
 import GoogleLogin from './components/GoogleLogin'
 import UserInfo from './components/UserInfo'
+import TTSPage from './components/TTSPage'
 import { useAuth } from './contexts/AuthContext'
 
 function App() {
@@ -113,6 +114,7 @@ function App() {
             <Routes>
               <Route path="/" element={<ChatInterface />} />
               <Route path="/chat/:id" element={<ChatInterface />} />
+              <Route path="/tts" element={<TTSPage />} />
               <Route path="/auth/wechat-callback" element={<WechatLogin />} />
               <Route path="/auth/google-callback" element={<GoogleLogin />} />
             </Routes>
