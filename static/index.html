@@ -59,6 +59,10 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         .audio-container {
             margin-top: 20px;
             display: none;
@@ -81,6 +85,11 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .error-message {
+            color: #d9534f;
+            margin-top: 10px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -91,12 +100,22 @@
             <textarea id="text" placeholder="请输入要合成的文本">好消息，好消息！魔声AI语音合成全面升级了！促销配音一次搞定，不信你就试试看！全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481</textarea>
         </div>
         <div class="form-group">
-            <label for="voice-type">声音类型:</label>
-            <select id="voice-type">
-                <option value="默认">默认</option>
+            <label for="gender">选择性别:</label>
+            <select id="gender">
+                <option value="">请选择性别</option>
+                <option value="男声">男声</option>
+                <option value="女声">女声</option>
             </select>
         </div>
-        <button id="synthesize-btn">合成语音</button>
+        <div class="form-group" id="voice-container" style="display: none;">
+            <label for="voice-label">选择音色:</label>
+            <select id="voice-label">
+                <option value="">请选择音色</option>
+            </select>
+        </div>
+        <div class="error-message" id="error-message" style="display: none;"></div>
+        <button id="synthesize-btn" disabled>合成语音</button>
+        <button id="confirm-btn" disabled>确认使用</button>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
@@ -110,14 +129,121 @@
     </div>
 
     <script>
-        document.getElementById('synthesize-btn').addEventListener('click', async () => {
-            const text = document.getElementById('text').value;
-            const voiceType = document.getElementById('voice-type').value;
+        // 声音类型数据
+        let voiceTypes = {};
+        
+        // 页面加载完成后获取声音类型
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await loadVoiceTypes();
+            } catch (error) {
+                showError('加载声音类型失败: ' + error.message);
+            }
+        });
+        
+        // 加载声音类型
+        async function loadVoiceTypes() {
+            const response = await fetch('/voice_types');
+            if (!response.ok) {
+                throw new Error(`获取声音类型失败: ${response.statusText}`);
+            }
             
-            if (!text) {
-                alert('请输入要合成的文本');
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.detail || '获取声音类型失败');
+            }
+            
+            voiceTypes = data.voice_types;
+            console.log('加载的声音类型:', voiceTypes);
+        }
+        
+        // 性别选择变化时更新音色选项
+        document.getElementById('gender').addEventListener('change', function() {
+            const gender = this.value;
+            const voiceContainer = document.getElementById('voice-container');
+            const voiceSelect = document.getElementById('voice-label');
+            
+            // 清空现有选项
+            voiceSelect.innerHTML = '<option value="">请选择音色</option>';
+            
+            if (gender) {
+                // 显示音色选择
+                voiceContainer.style.display = 'block';
+                
+                // 添加对应性别的音色选项
+                if (voiceTypes[gender] && voiceTypes[gender].length > 0) {
+                    voiceTypes[gender].forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice;
+                        option.textContent = voice;
+                        voiceSelect.appendChild(option);
+                    });
+                }
+            } else {
+                // 隐藏音色选择
+                voiceContainer.style.display = 'none';
+            }
+            
+            // 更新按钮状态
+            updateButtonStatus();
+        });
+        
+        // 音色选择变化时更新按钮状态
+        document.getElementById('voice-label').addEventListener('change', function() {
+            updateButtonStatus();
+        });
+        
+        // 文本输入变化时更新按钮状态
+        document.getElementById('text').addEventListener('input', function() {
+            updateButtonStatus();
+        });
+        
+        // 更新按钮状态
+        function updateButtonStatus() {
+            const text = document.getElementById('text').value.trim();
+            const gender = document.getElementById('gender').value;
+            const voiceLabel = document.getElementById('voice-label').value;
+            
+            const isValid = text && gender && voiceLabel;
+            
+            document.getElementById('synthesize-btn').disabled = !isValid;
+            document.getElementById('confirm-btn').disabled = !isValid;
+        }
+        
+        // 显示错误信息
+        function showError(message) {
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+        
+        // 隐藏错误信息
+        function hideError() {
+            document.getElementById('error-message').style.display = 'none';
+        }
+        
+        // 合成语音
+        document.getElementById('synthesize-btn').addEventListener('click', async () => {
+            await synthesizeAudio(false);
+        });
+        
+        // 确认使用
+        document.getElementById('confirm-btn').addEventListener('click', async () => {
+            await synthesizeAudio(true);
+        });
+        
+        // 合成或确认语音
+        async function synthesizeAudio(isConfirm) {
+            const text = document.getElementById('text').value;
+            const gender = document.getElementById('gender').value;
+            const voiceLabel = document.getElementById('voice-label').value;
+            
+            if (!text || !gender || !voiceLabel) {
+                showError('请完整填写所有必填字段');
                 return;
             }
+            
+            hideError();
             
             // 显示加载动画
             document.getElementById('loading').style.display = 'block';
@@ -126,15 +252,39 @@
             try {
                 const formData = new FormData();
                 formData.append('text', text);
-                formData.append('voice_type', voiceType);
+                formData.append('gender', gender);
+                formData.append('voice_label', voiceLabel);
                 
-                const response = await fetch('/synthesize', {
-                    method: 'POST',
-                    body: formData
-                });
+                // 根据是否确认选择不同的端点
+                const endpoint = isConfirm ? '/confirm_script' : '/synthesize';
+                
+                let response;
+                if (isConfirm) {
+                    // 确认使用时使用JSON格式
+                    response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            gender: gender,
+                            voice_label: voiceLabel
+                        })
+                    });
+                } else {
+                    // 合成预览时使用FormData
+                    response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                }
                 
                 if (!response.ok) {
-                    throw new Error(`合成失败: ${response.statusText}`);
+                    throw new Error(`操作失败: ${response.statusText}`);
                 }
                 
                 // 检查响应类型
@@ -176,22 +326,20 @@
                 audioPlayer.src = audioUrl;
                 audioPlayer.onerror = function(e) {
                     console.error('音频加载失败:', e);
-                    alert('音频加载失败，请查看控制台获取详细信息');
+                    showError('音频加载失败，请查看控制台获取详细信息');
                 };
                 
                 // 显示音频播放器
                 document.getElementById('audio-container').style.display = 'block';
                 
-                // 不自动播放，让用户手动点击播放
-                // audioPlayer.play();
             } catch (error) {
-                alert(`错误: ${error.message}`);
+                showError(`错误: ${error.message}`);
                 console.error('详细错误:', error);
             } finally {
                 // 隐藏加载动画
                 document.getElementById('loading').style.display = 'none';
             }
-        });
+        }
     </script>
 </body>
 </html> 
