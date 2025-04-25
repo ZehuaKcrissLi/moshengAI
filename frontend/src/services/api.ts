@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 // API基础URL
-const API_BASE_URL = 'http://localhost:8000/api';
+// 优先使用环境变量中的API基础URL，如果没有则使用默认值
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+console.log('当前API基础URL:', API_BASE_URL);
 
 // 创建一个axios实例
 const api = axios.create({
@@ -9,6 +11,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // 增加超时时间
+  timeout: 10000,
 });
 
 // 添加请求拦截器
