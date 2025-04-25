@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "e78e0e87-6dc8-4543-b0dd-4eccfee12438",
+    "text": "欢迎使用魔声AI配音助手！我可以帮您生成高质量的中文配音。请输入您需要配音的文本，确认后我将为您生成语音。",
+    "timestamp": "2025-03-24 16:59:36",
+    "wav_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/e78e0e87-6dc8-4543-b0dd-4eccfee12438.wav",
+    "mp3_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/e78e0e87-6dc8-4543-b0dd-4eccfee12438.mp3",
+    "wav_url": "/client_output/e78e0e87-6dc8-4543-b0dd-4eccfee12438.wav",
+    "mp3_url": "/client_output/e78e0e87-6dc8-4543-b0dd-4eccfee12438.mp3",
+    "user_id": null,
+    "session_id": null
+  },
+  {
+    "id": "09b0cca3-1b51-4784-9024-7c6beaf5e4a4",
+    "text": "好消息，好消息！魔声AI语音合成全面升级了！促销配音一次搞定，不信你就试试看！全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481",
+    "timestamp": "2025-04-25 12:42:44",
+    "wav_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/09b0cca3-1b51-4784-9024-7c6beaf5e4a4.wav",
+    "mp3_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/09b0cca3-1b51-4784-9024-7c6beaf5e4a4.mp3",
+    "wav_url": "/client_output/09b0cca3-1b51-4784-9024-7c6beaf5e4a4.wav",
+    "mp3_url": "/client_output/09b0cca3-1b51-4784-9024-7c6beaf5e4a4.mp3",
+    "user_id": null,
+    "session_id": null,
+    "gender": "男声",
+    "voice_label": "男声18大气质感风格"
+  }
+]

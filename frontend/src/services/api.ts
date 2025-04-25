@@ -1,25 +1,44 @@
 import axios from 'axios';
 
 // API基础URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = 'http://localhost:8000/api';
 
-// 创建axios实例
+// 创建一个axios实例
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false // 关闭跨域请求携带凭证，避免某些CORS问题
 });
 
-// 请求拦截器，添加身份验证
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers['Authorization'] = `Bearer ${token}`;
+// 添加请求拦截器
+api.interceptors.request.use(
+  (config) => {
+    // 获取token并添加到请求头
+    const token = localStorage.getItem('authToken');
+    if (token && config.headers) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    console.log('请求发送:', config.url, config.data);
+    return config;
+  },
+  (error) => {
+    console.error('请求错误:', error);
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+// 添加响应拦截器
+api.interceptors.response.use(
+  (response) => {
+    console.log('响应接收:', response.status, response.data);
+    return response;
+  },
+  (error) => {
+    console.error('响应错误:', error.response?.status, error.response?.data);
+    return Promise.reject(error);
+  }
+);
 
 // 响应接口类型
 export interface AudioPreview {
@@ -59,7 +78,7 @@ export interface RegisterResponse {
 
 // 消息接口
 export interface Message {
-  role: 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant';
   content: string;
 }
 
@@ -109,66 +128,204 @@ export const apiService = {
   }
 };
 
-// 聊天API
-export const chatAPI = {
-  // 发送聊天消息到魔声AI语音助手
-  sendMessage: async (messages: Message[], temperature: number = 0.7, maxTokens: number = 2000) => {
+// 认证API
+export const authAPI = {
+  // 用户登录
+  login: async (email: string, password: string) => {
     try {
-      console.log('发送聊天请求到后端，消息数量:', messages.length);
-      
-      // 对消息进行预处理，确保格式符合后端期望
-      const formattedMessages = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
-      const response = await api.post('/chat/chat', {
-        messages: formattedMessages,
-        temperature,
-        max_tokens: maxTokens
+      const response = await api.post<LoginResponse>('/auth/login', {
+        email,
+        password
       });
-      
-      console.log('聊天响应:', response.data);
-      
-      // 处理返回的消息
-      if (response.data && response.data.message) {
-        return {
-          message: response.data.message,
-          messages: response.data.messages || [...messages, response.data.message]
-        };
-      } else {
-        throw new Error('响应格式不正确');
+      // 保存token到本地存储
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
       }
+      return response.data;
     } catch (error) {
-      console.error('聊天API错误:', error);
-      // 失败时返回一个错误消息，以确保前端不会崩溃
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: '很抱歉，我暂时无法回应您的请求。请稍后再试或联系客服。'
-      };
-      return {
-        message: errorMessage,
-        messages: [...messages, errorMessage]
-      };
+      console.error('登录失败:', error);
+      throw error;
+    }
+  },
+
+  // 用户注册
+  register: async (username: string, email: string, password: string) => {
+    try {
+      const response = await api.post<RegisterResponse>('/auth/register', {
+        username,
+        email,
+        password
+      });
+      // 保存token到本地存储
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('注册失败:', error);
+      throw error;
+    }
+  },
+
+  // 退出登录
+  logout: () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+  },
+
+  // 获取当前用户信息
+  getCurrentUser: () => {
+    const userString = localStorage.getItem('user');
+    if (userString) {
+      return JSON.parse(userString) as User;
+    }
+    return null;
+  },
+
+  // 检查是否已登录
+  isAuthenticated: () => {
+    return !!localStorage.getItem('authToken');
+  },
+
+  // 社交登录 - 微信
+  wechatLogin: async (code: string) => {
+    try {
+      const response = await api.post<LoginResponse>('/auth/wechat-login', { code });
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('微信登录失败:', error);
+      throw error;
+    }
+  },
+
+  // 社交登录 - Google
+  googleLogin: async (code: string) => {
+    try {
+      console.log('发送Google登录请求，code:', code);
+      // 直接使用完整URL，不依赖baseURL
+      const response = await axios.post('http://localhost:8000/api/auth/google-login', { code }, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('Google登录响应:', response.data);
+      
+      if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Google登录失败:', error);
+      throw error;
     }
   }
 };
 
-// 语音合成API
-export const ttsAPI = {
-  // 合成语音
-  synthesize: async (text: string, userId?: string, sessionId?: string) => {
+// 聊天API
+export const chatAPI = {
+  // 发送聊天消息到DeepSeek AI
+  sendMessage: async (messages: Message[], temperature: number = 0.7, maxTokens: number = 2000) => {
     try {
-      // 使用FormData而不是JSON，因为后端接收Form参数
+      const response = await api.post('/chat/chat', {
+        messages,
+        temperature,
+        max_tokens: maxTokens
+      });
+      return response.data;
+    } catch (error) {
+      console.error('聊天API错误:', error);
+      throw error;
+    }
+  }
+};
+
+// 语音API
+export const voiceAPI = {
+  // 生成配音
+  generateVoice: async (text: string, accent: string, style: string) => {
+    try {
+      const response = await api.post('/voice/generate', {
+        text,
+        accent,
+        style
+      });
+      return response.data;
+    } catch (error) {
+      console.error('语音API错误:', error);
+      throw error;
+    }
+  },
+  
+  // 获取音频预览
+  getAudioPreviews: async (text: string) => {
+    try {
+      const response = await api.post('/voice/previews', {
+        text
+      });
+      return response.data;
+    } catch (error) {
+      console.error('获取音频预览错误:', error);
+      throw error;
+    }
+  }
+};
+
+// 定义接口
+export interface VoiceTypes {
+  [gender: string]: string[];
+}
+
+export interface TTSResponse {
+  success: boolean;
+  message: string;
+  wav_url: string;
+  mp3_url: string;
+  text: string;
+}
+
+export interface ConfirmScriptResponse {
+  success: boolean;
+  message: string;
+  audio_id: string;
+  wav_url: string;
+  mp3_url: string;
+  text: string;
+  timestamp: string;
+}
+
+// API服务
+export const ttsAPI = {
+  // 获取可用的声音类型
+  getVoiceTypes: async (): Promise<VoiceTypes> => {
+    try {
+      const response = await api.get('/voice_types');
+      return response.data.voice_types;
+    } catch (error) {
+      console.error('获取声音类型失败:', error);
+      throw error;
+    }
+  },
+
+  // 合成语音
+  synthesize: async (text: string, gender: string, voiceLabel: string): Promise<TTSResponse> => {
+    try {
       const formData = new FormData();
       formData.append('text', text);
-      formData.append('voice_type', '默认');
-      
+      formData.append('gender', gender);
+      formData.append('voice_label', voiceLabel);
+
       const response = await api.post('/synthesize', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json',  // 明确请求JSON响应
-        },
+          'Accept': 'application/json'
+        }
       });
       return response.data;
     } catch (error) {
@@ -176,73 +333,26 @@ export const ttsAPI = {
       throw error;
     }
   },
-  
-  // 确认脚本并生成最终音频
-  confirmScript: async (text: string, userId?: string, sessionId?: string) => {
+
+  // 确认脚本
+  confirmScript: async (
+    text: string,
+    gender: string,
+    voiceLabel: string,
+    userId?: string,
+    sessionId?: string
+  ): Promise<ConfirmScriptResponse> => {
     try {
-      const response = await api.post('/confirm_script', { 
-        text, 
+      const response = await api.post('/confirm_script', {
+        text,
+        gender,
+        voice_label: voiceLabel,
         user_id: userId,
         session_id: sessionId
       });
       return response.data;
     } catch (error) {
       console.error('确认脚本失败:', error);
-      throw error;
-    }
-  },
-  
-  // 获取已保存的音频列表
-  getSavedAudios: async () => {
-    try {
-      const response = await api.get('/tts/saved_audios');
-      return response.data;
-    } catch (error) {
-      console.error('获取已保存音频失败:', error);
-      throw error;
-    }
-  }
-};
-
-// 验证API
-export const authAPI = {
-  // 谷歌登录
-  googleLogin: async (token: string) => {
-    try {
-      const response = await api.post('/auth/google', { token });
-      return response.data;
-    } catch (error) {
-      console.error('谷歌登录失败:', error);
-      throw error;
-    }
-  },
-  
-  // 获取当前用户信息
-  getCurrentUser: async () => {
-    try {
-      // 尝试从本地存储获取用户信息
-      const savedUser = localStorage.getItem('user');
-      if (savedUser) {
-        return JSON.parse(savedUser);
-      }
-      
-      // 如果本地没有，则尝试从API获取
-      const response = await api.get('/auth/me');
-      return response.data;
-    } catch (error) {
-      console.error('获取用户信息失败:', error);
-      // 返回null而不是抛出错误，避免页面崩溃
-      return null;
-    }
-  },
-  
-  // 登出
-  logout: async () => {
-    try {
-      const response = await api.post('/auth/logout');
-      return response.data;
-    } catch (error) {
-      console.error('登出失败:', error);
       throw error;
     }
   }

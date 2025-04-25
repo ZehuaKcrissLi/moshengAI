@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import UserAvatar from './UserAvatar';
 import LoginModal from './LoginModal';
-import { format, isToday, isYesterday, subDays, startOfWeek, endOfWeek, isThisWeek } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
-import { ttsAPI } from '../services/api';
 
 interface ChatHistory {
   id: string;
@@ -20,14 +17,6 @@ interface AudioFile {
   date: string;
   duration: string;
   url: string;
-}
-
-interface SavedAudio {
-  id: string;
-  text: string;
-  timestamp: string;
-  mp3_url: string;
-  wav_url: string;
 }
 
 interface SidebarProps {
