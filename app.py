@@ -40,6 +40,9 @@ os.makedirs(CLIENT_OUTPUT_DIR, exist_ok=True)
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
+# 定义声音类型目录
+VOICE_TYPES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt_voice")
+
 # 创建FastAPI应用
 app = FastAPI(title="魔声AI语音合成API", description="基于CosyVoice2的语音合成API")
 
@@ -66,9 +69,12 @@ print("模型加载成功！")
 
 # 加载示例音频作为提示
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/zero_shot_prompt.wav")
-# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/quanyoujiaju.wav")
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/quanyoujiaju.wav") # 全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/qiaodantiyu.mp3") #乔丹体育盛大开业，全场鞋服四折起，精选款运动鞋买一送一，进店选购更有好礼相送！
-PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/toulan_26s.mp3")
+PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/haoa.mp3") # 好啊，没想到你还真能把我造出来，欢迎加入欧比组织，谱姈，这是命令，好了，亲爱的，别伤心了，来抱一抱，好了，亲爱的，别伤心了，来抱一抱
+PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/pijiu.mp3") # 津喜熊猫鲜酿啤酒，全粮、山泉水精酿，全程低温0一4℃保存冰爽口感，精酿中的劳斯莱斯，零添加更健康，多元化口味刚好微醺，多元化口味刚好微醺
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/toulan_26s.mp3") # Please select your corresponding gray color according to the screen color distribution, You can get points by stepping on your own color square.When the red bomb appears, you can step on your own color square first, and then activate the bomb to eliminate the opponent's color square. Note that the color square eliminated by the bomb will deduct the corresponding score.
+
 if os.path.exists(PROMPT_PATH):
     prompt_speech_16k = load_wav(PROMPT_PATH, 16000)
     print(f"已加载提示音频: {PROMPT_PATH}")
@@ -345,29 +351,122 @@ def convert_wav_to_mp3(wav_path: str, bitrate: str = "256k") -> str:
         print(f"转换音频格式失败: {str(e)}")
         raise e
 
+def get_voice_types() -> Dict[str, List[str]]:
+    """
+    获取所有可用的声音类型
+    
+    Returns:
+        Dict[str, List[str]]: 声音类型字典，key为性别（男声/女声），value为该性别下的所有声音列表
+    """
+    voice_types = {}
+    
+    # 遍历声音类型目录
+    for gender in os.listdir(VOICE_TYPES_DIR):
+        gender_path = os.path.join(VOICE_TYPES_DIR, gender)
+        if os.path.isdir(gender_path) and gender in ["male", "female"]:
+            voices = []
+            # 遍历该性别目录下的所有wav文件
+            for file in os.listdir(gender_path):
+                if file.endswith(".wav"):
+                    # 获取文件名（不含扩展名）作为声音标签
+                    voice_label = os.path.splitext(file)[0]
+                    voices.append(voice_label)
+            # 将性别目录名转换为中文
+            gender_cn = "男声" if gender == "male" else "女声"
+            voice_types[gender_cn] = sorted(voices)
+    
+    return voice_types
+
+def get_voice_path(gender: str, voice_label: str) -> tuple[str, str]:
+    """
+    获取指定声音类型的音频文件路径和对应的文本文件路径
+    
+    Args:
+        gender: 性别（男声/女声）
+        voice_label: 声音标签
+        
+    Returns:
+        tuple[str, str]: (音频文件路径, 文本文件路径)
+    """
+    # 将中文性别转换为英文目录名
+    gender_dir = "male" if gender in ["男声", "male"] else "female"
+    
+    # 构建完整的文件路径
+    voice_path = os.path.join(VOICE_TYPES_DIR, gender_dir, f"{voice_label}.wav")
+    text_path = os.path.join(VOICE_TYPES_DIR, gender_dir, f"{voice_label}.txt")
+    
+    # 检查文件是否存在
+    if not os.path.exists(voice_path):
+        raise HTTPException(status_code=404, detail=f"声音文件不存在: {voice_label}")
+    if not os.path.exists(text_path):
+        raise HTTPException(status_code=404, detail=f"声音文本文件不存在: {voice_label}")
+    
+    return voice_path, text_path
+
+def load_voice_prompt(voice_path: str, text_path: str) -> tuple[torch.Tensor, str]:
+    """
+    加载声音提示音频和对应的文本
+    
+    Args:
+        voice_path: 音频文件路径
+        text_path: 文本文件路径
+        
+    Returns:
+        tuple[torch.Tensor, str]: (音频数据, 提示文本)
+    """
+    # 加载音频文件
+    prompt_speech_16k = load_wav(voice_path, 16000)
+    
+    # 读取提示文本
+    with open(text_path, 'r', encoding='utf-8') as f:
+        prompt_text = f.read().strip()
+    
+    return prompt_speech_16k, prompt_text
+
 @app.get("/")
 async def root():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
+@app.get("/voice_types")
+async def get_available_voice_types():
+    """获取所有可用的声音类型"""
+    try:
+        voice_types = get_voice_types()
+        return JSONResponse({
+            "success": True,
+            "voice_types": voice_types
+        })
+    except Exception as e:
+        print(f"获取声音类型失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"获取声音类型失败: {str(e)}")
+
 @app.post("/synthesize")
 async def synthesize(
     text: str = Form(...), 
-    voice_type: str = Form("默认"),
-    request: Request = None  # 添加请求对象参数
+    gender: str = Form(...),
+    voice_label: str = Form(...),
+    request: Request = None
 ):
     """
     将文本转换为语音
     
     参数:
     - text: 要合成的文本
-    - voice_type: 声音类型，默认为"默认"
+    - gender: 性别（男声/女声）
+    - voice_label: 声音标签
     - request: 请求对象，用于检测请求源
     
     返回:
     - 语音文件或包含文件URL的JSON响应
     """
     try:
-        print(f"收到合成请求: '{text}', 声音类型: {voice_type}")
+        print(f"收到合成请求: '{text}', 性别: {gender}, 声音: {voice_label}")
+        
+        # 获取声音文件路径和文本文件路径
+        voice_path, text_path = get_voice_path(gender, voice_label)
+        
+        # 加载声音提示
+        prompt_speech_16k, prompt_text = load_voice_prompt(voice_path, text_path)
         
         # 生成唯一文件名
         output_id = uuid.uuid4()
@@ -388,7 +487,7 @@ async def synthesize(
             temp_output_path = os.path.join(OUTPUT_DIR, f"{output_id}_part{i}.wav")
             
             # 合成语音
-            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, "Please select your corresponding gray color according to the screen color distribution, You can get points by stepping on your own color square.When the red bomb appears, you can step on your own color square first, and then activate the bomb to eliminate the opponent's color square. Note that the color square eliminated by the bomb will deduct the corresponding score.", prompt_speech_16k, stream=False)):
+            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, prompt_text, prompt_speech_16k, stream=False)):
                 tts_speech = result['tts_speech']
                 torchaudio.save(temp_output_path, tts_speech, cosyvoice.sample_rate)
                 print(f"已保存第{i+1}段语音文件: {temp_output_path}")
@@ -465,6 +564,8 @@ async def synthesize(
 @app.post("/confirm_script")
 async def confirm_script(
     text: str = Body(...),
+    gender: str = Body(...),
+    voice_label: str = Body(...),
     user_id: str = Body(None),
     session_id: str = Body(None)
 ):
@@ -473,6 +574,8 @@ async def confirm_script(
     
     参数:
     - text: 已确认的文本脚本
+    - gender: 性别（男声/女声）
+    - voice_label: 声音标签
     - user_id: 用户ID（可选）
     - session_id: 会话ID（可选）
     
@@ -480,7 +583,13 @@ async def confirm_script(
     - 最终音频文件URL
     """
     try:
-        print(f"收到脚本确认请求: '{text}'")
+        print(f"收到脚本确认请求: '{text}', 性别: {gender}, 声音: {voice_label}")
+        
+        # 获取声音文件路径和文本文件路径
+        voice_path, text_path = get_voice_path(gender, voice_label)
+        
+        # 加载声音提示
+        prompt_speech_16k, prompt_text = load_voice_prompt(voice_path, text_path)
         
         # 生成唯一文件名和ID
         audio_id = str(uuid.uuid4())
@@ -501,7 +610,7 @@ async def confirm_script(
             temp_output_path = os.path.join(CLIENT_OUTPUT_DIR, f"{audio_id}_part{i}.wav")
             
             # 合成语音
-            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, "全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。", prompt_speech_16k, stream=False)):
+            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, prompt_text, prompt_speech_16k, stream=False)):
                 tts_speech = result['tts_speech']
                 torchaudio.save(temp_output_path, tts_speech, cosyvoice.sample_rate)
                 print(f"已保存第{i+1}段语音文件: {temp_output_path}")
@@ -543,7 +652,9 @@ async def confirm_script(
             "wav_url": f"/client_output/{wav_filename}",
             "mp3_url": f"/client_output/{mp3_filename}",
             "user_id": user_id,
-            "session_id": session_id
+            "session_id": session_id,
+            "gender": gender,
+            "voice_label": voice_label
         }
         
         # 保存记录
