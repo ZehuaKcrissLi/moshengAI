@@ -271,7 +271,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
         {/* 新建按钮 */}
         <button
           onClick={handleNewChat}
-          className="flex items-center justify-center w-full py-2.5 px-3 mb-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          className="flex items-center justify-center w-full py-2.5 px-3 mb-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <svg 
             xmlns="http://www.w3.org/2000/svg"
@@ -284,24 +284,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
           </svg>
           新建对话
         </button>
-        
-        {/* 配音助手入口 */}
-        <Link
-          to="/tts"
-          className="flex items-center justify-center w-full py-2.5 px-3 mb-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          onClick={() => window.innerWidth < 1024 && setIsOpen(false)}
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 mr-1.5" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-          </svg>
-          配音助手
-        </Link>
         
         {/* 分类标签 */}
         <div className="mb-4 border-b border-gray-200">
