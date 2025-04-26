@@ -688,6 +688,14 @@ async def get_saved_audios():
         print(f"获取已保存音频记录失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取已保存音频记录失败: {str(e)}")
 
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    return JSONResponse({
+        "status": "ok",
+        "message": "TTS服务正常运行"
+    })
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080) 
