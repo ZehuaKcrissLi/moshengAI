@@ -318,13 +318,18 @@ export interface ConfirmScriptResponse {
   timestamp: string;
 }
 
-// API服务
+// 定义 TTS 服务的 Base URL
+const TTS_API_BASE_URL = 'http://localhost:8080'; // TTS 服务运行在 8080 端口
+
+// API服务 - 修改 ttsAPI
 export const ttsAPI = {
-  // 获取可用的声音类型
+  // 获取可用的声音类型 - 这个可能也需要访问 8080 端口？假设它也在 TTS 服务上
   getVoiceTypes: async (): Promise<VoiceTypes> => {
     try {
-      const response = await api.get('/voice_types');
-      return response.data.voice_types;
+      // 直接调用 8080 端口
+      const response = await axios.get(`${TTS_API_BASE_URL}/voice_types`);
+      // 注意：返回的数据结构可能需要调整，假设 voice_types 在顶层
+      return response.data.voice_types || response.data; 
     } catch (error) {
       console.error('获取声音类型失败:', error);
       throw error;
@@ -339,10 +344,12 @@ export const ttsAPI = {
       formData.append('gender', gender);
       formData.append('voice_label', voiceLabel);
 
-      const response = await api.post('/synthesize', formData, {
+      // 直接调用 8080 端口的 /synthesize
+      const response = await axios.post(`${TTS_API_BASE_URL}/synthesize`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json'
+          // Content-Type 由浏览器根据 FormData 自动设置，通常不需要手动指定
+          // 'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json' // 确保我们期望得到 JSON 响应
         }
       });
       return response.data;
@@ -361,12 +368,18 @@ export const ttsAPI = {
     sessionId?: string
   ): Promise<ConfirmScriptResponse> => {
     try {
-      const response = await api.post('/confirm_script', {
+      // 直接调用 8080 端口的 /confirm_script
+      const response = await axios.post(`${TTS_API_BASE_URL}/confirm_script`, {
         text,
         gender,
         voice_label: voiceLabel,
         user_id: userId,
         session_id: sessionId
+      }, {
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
       });
       return response.data;
     } catch (error) {

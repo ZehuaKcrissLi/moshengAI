@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AudioPlayer from './AudioPlayer';
-import { Message as MessageType, chatAPI, ttsAPI } from '../services/api';
+// import { Message as MessageType, chatAPI, ttsAPI, ConfirmScriptResponse, TTSResponse } from '../services/api'; // Temporarily comment out unused types
+import { Message as MessageType, chatAPI, ttsAPI } from '../services/api'; // Keep used ones
 import LogoIcon from './LogoIcon';
 import LoginModal from './LoginModal';
+// import { VoiceSelector, Voice } from './VoiceSelector'; // Revert to default for now and comment out
+import { VoiceSelector, Voice } from './VoiceSelector';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext'; // Temporarily comment out
+import { parseFunctionCalls, FunctionCall } from '../utils/functionCallParser'; // Keep used ones
 
 interface Message {
   id: string;
@@ -40,6 +44,15 @@ interface VoicePreview {
   isLoading?: boolean;
 }
 
+// Chat history type
+interface ChatSession {
+  id: string;
+  title: string;
+  date: string;
+  preview: string;
+  messages: Message[];
+}
+
 // 将前端Message格式转换为API Message格式
 const convertToApiMessages = (messages: Message[]): MessageType[] => {
   return messages
@@ -70,7 +83,7 @@ const PRESET_EXAMPLES = [
 ];
 
 const ChatInterface: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  // const { isAuthenticated } = useAuth(); // Temporarily comment out
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +95,6 @@ const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<VoicePreview | null>(null);
   const [isRecommendingVoices, setIsRecommendingVoices] = useState(false);
   
@@ -124,7 +136,7 @@ const ChatInterface: React.FC = () => {
   useEffect(() => {
     if (messages.length > 1 && hasInteracted) {
       // 获取现有历史记录
-      const chatHistory = JSON.parse(localStorage.getItem('chatHistory') || '[]');
+      const chatHistory: ChatSession[] = JSON.parse(localStorage.getItem('chatHistory') || '[]'); // Add type
       
       // 生成更有意义的标题
       let title = '';
@@ -140,14 +152,14 @@ const ChatInterface: React.FC = () => {
       }
       
       // 创建对话ID，如果现有则保留ID
-      const existingChat = chatHistory.find((chat: any) => 
+      const existingChat = chatHistory.find((chat: ChatSession) => // Use ChatSession type
         JSON.stringify(chat.messages) === JSON.stringify(messages)
       );
       
       const chatId = existingChat?.id || generateId();
       
       // 创建新的聊天记录对象
-      const newChat = {
+      const newChat: ChatSession = {
         id: chatId,
         title: title,
         date: new Date().toLocaleString(),
@@ -156,7 +168,7 @@ const ChatInterface: React.FC = () => {
       };
       
       // 如果存在相同ID的对话，就更新它；否则添加新对话
-      const chatIndex = chatHistory.findIndex((chat: any) => chat.id === chatId);
+      const chatIndex = chatHistory.findIndex((chat: ChatSession) => chat.id === chatId); // Use ChatSession type
       let updatedHistory;
       
       if (chatIndex !== -1) {
@@ -165,7 +177,7 @@ const ChatInterface: React.FC = () => {
         updatedHistory[chatIndex] = newChat;
       } else {
         // 添加新对话到历史记录前端
-        updatedHistory = [newChat, ...chatHistory.filter((chat: any) => chat.id !== chatId)].slice(0, 50); // 保留最近50条
+        updatedHistory = [newChat, ...chatHistory.filter((chat: ChatSession) => chat.id !== chatId)].slice(0, 50); // Use ChatSession type
       }
       
       // 保存更新后的历史记录
@@ -177,23 +189,102 @@ const ChatInterface: React.FC = () => {
     }
   }, [messages, hasInteracted]);
 
-  // 模拟流式生成
-  const simulateStreamResponse = async (response: string) => {
+  // 处理消息发送（集成函数调用解析）
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading || isStreaming) return;
+    
+    // 检查是否已登录，如果未登录则显示登录弹窗 - 暂时禁用登录要求
+    /*
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    */
+    
+    // 设置用户已交互
+    if (!hasInteracted) {
+      setHasInteracted(true);
+    }
+    
+    const userMessage: Message = {
+      id: generateId(),
+      content: inputValue,
+      sender: 'user'
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    const currentMessages = [...messages, userMessage]; // 获取包含新用户消息的列表
+    setInputValue('');
+    setIsLoading(true);
+    setApiError(null); 
+    
+    let newAiMessageId: string | null = null; // 用于追踪新 AI 消息的 ID
+
+    try {
+      const apiMessages = convertToApiMessages(currentMessages);
+      console.log('发送到API的消息:', apiMessages);
+      
+      const response = await chatAPI.sendMessage(apiMessages);
+      console.log('API响应:', response);
+      
+      const rawMessageContent = response.message;
+
+      // 1. 解析函数调用
+      const functionCalls = parseFunctionCalls(rawMessageContent);
+
+      // 2. 准备要显示的文本 (移除函数调用标记)
+      const displayText = rawMessageContent.replace(/<<<[\s\S]*?>>>/g, '').trim();
+
+      // 3. 如果有纯文本内容，先流式显示，并获取新消息ID
+      if (displayText) {
+        // 修改 simulateStreamResponse 以返回新消息的 ID
+        newAiMessageId = await simulateStreamResponse(displayText);
+      } else {
+        // 如果只有函数调用，确保loading状态结束
+        setIsLoading(false);
+      }
+
+      // 4. 处理函数调用 (异步执行)
+      if (functionCalls.length > 0) {
+        // 优先使用流式响应生成的消息ID，否则使用用户消息ID作为后备（可能需要调整）
+        const messageIdToUpdate = newAiMessageId || userMessage.id; 
+        await handleFunctionCalls(functionCalls, messageIdToUpdate);
+      }
+
+    } catch (error: unknown) {
+      console.error('发送消息错误:', error);
+      const errorResponse = error as { response?: { status?: number, data?: { detail?: string } } };
+      const errorStatus = errorResponse.response?.status || 500;
+      const errorDetail = errorResponse.response?.data?.detail || '未知错误，请稍后再试';
+      console.log(`API错误 (${errorStatus}):`, errorDetail);
+      setApiError({ status: errorStatus, message: errorDetail });
+      const errorMessage: Message = {
+        id: generateId(),
+        content: `抱歉，发生了错误 (${errorStatus}): ${errorDetail}`,
+        sender: 'ai',
+        error: true
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      setIsLoading(false); // 确保错误时停止加载
+    } 
+    // finally 块被移到 simulateStreamResponse 和 handleFunctionCalls 内部管理 isLoading
+  };
+
+  // 修改 simulateStreamResponse 以返回新消息的 ID
+  const simulateStreamResponse = async (response: string): Promise<string> => {
     setIsStreaming(true);
     setStreamingMessage('');
+    const newId = generateId(); // 先生成 ID
     
-    // 将响应分成字符并逐个显示
     const chars = response.split('');
     for (let i = 0; i < chars.length; i++) {
-      // 随机的打字速度，使其看起来更自然
       const delay = 10 + Math.random() * 30;
       await new Promise(resolve => setTimeout(resolve, delay));
       setStreamingMessage(prev => prev + chars[i]);
     }
     
-    // 流式生成结束后，将内容添加到消息列表
     const aiMessage: Message = {
-      id: generateId(),
+      id: newId, // 使用预生成的 ID
       content: response,
       sender: 'ai'
     };
@@ -201,14 +292,127 @@ const ChatInterface: React.FC = () => {
     setMessages(prev => [...prev, aiMessage]);
     setIsStreaming(false);
     setStreamingMessage('');
+    setIsLoading(false); // 流式结束后停止 loading
+    return newId; // 返回新消息的 ID
   };
-  
+
   // 使用预设示例
   const handleUseExample = (title: string) => {
-    setInputValue(`请帮我生成一段${title}的英文配音`);
+    setInputValue(`请帮我生成一段关于"${title}"的配音文案`);
     if (inputRef.current) {
       inputRef.current.focus();
     }
+  };
+
+  // 新增：处理函数调用的副作用
+  const handleFunctionCalls = async (calls: FunctionCall[], messageIdToUpdate: string) => {
+    setIsLoading(true); // 开始处理函数调用，显示加载状态
+    try {
+      for (const call of calls) {
+        console.log('处理函数调用:', call.action, call.args);
+        switch (call.action) {
+          case 'recommend_voice_styles':
+            // 确保 args.text 是字符串
+            if (typeof call.args.text === 'string') {
+                await handleRecommendVoiceStylesCall(call.args as { text: string }, messageIdToUpdate);
+            } else {
+                console.error('无效的 recommend_voice_styles 参数: text 不是字符串', call.args);
+            }
+            break;
+          case 'tts_preview':
+             // 参数类型断言，需要确保运行时类型匹配
+            if (typeof call.args.text === 'string' && 
+                typeof call.args.gender === 'string' && 
+                typeof call.args.voice_label === 'string') {
+                await handleTtsPreviewCall(call.args as { text: string; gender: string; voice_label: string }, messageIdToUpdate);
+            } else {
+                console.error('无效的 tts_preview 参数', call.args);
+            }
+            break;
+          case 'tts_final':
+             // 参数类型断言
+            if (typeof call.args.text === 'string' && 
+                typeof call.args.gender === 'string' && 
+                typeof call.args.voice_label === 'string') {
+                await handleTtsFinalCall(call.args as { text: string; gender: string; voice_label: string }, messageIdToUpdate);
+            } else {
+                 console.error('无效的 tts_final 参数', call.args);
+            }
+            break;
+          default:
+            console.warn('未知的函数调用:', call.action);
+        }
+      }
+    } catch (error) {
+      console.error("处理函数调用时出错:", error);
+      const errorMsg: Message = {
+        id: generateId(),
+        content: `处理指令时出错: ${error instanceof Error ? error.message : '未知错误'}`,
+        sender: 'ai',
+        error: true,
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false); // 所有函数调用处理完毕
+    }
+  };
+
+  // 新增：处理 recommend_voice_styles 调用
+  const handleRecommendVoiceStylesCall = async (args: { text: string }, messageId: string) => {
+      // 复用之前的 handleConfirmText 逻辑
+      await handleConfirmText(args.text, messageId);
+  };
+
+  // 新增：处理 tts_preview 调用 (复用 handlePreviewVoice)
+  const handleTtsPreviewCall = async (args: { text: string; gender: string; voice_label: string }, messageId: string) => {
+    // 需要找到包含推荐音色的那条消息，才能进行预览
+    const targetMessage = messages.find(msg => msg.id === messageId);
+    if (!targetMessage || !targetMessage.recommendedVoices) {
+        console.error(`无法为消息 ${messageId} 执行 tts_preview，找不到推荐音色列表`);
+        // 或者需要添加一条AI消息提示用户
+        const errorMsg: Message = {
+            id: generateId(),
+            content: `抱歉，无法找到需要预览的音色信息。请先确认文本并选择音色。`, 
+            sender: 'ai',
+            error: true,
+        };
+        setMessages(prev => [...prev, errorMsg]);
+        return; 
+    }
+    
+    const voiceToPreview: VoicePreview = {
+      id: `${args.gender}-${args.voice_label}`, // 构造一个临时的ID
+      label: args.voice_label,
+      gender: args.gender,
+      isLoading: false, // 初始状态
+    };
+    // 复用之前的 handlePreviewVoice 逻辑
+    await handlePreviewVoice(voiceToPreview, messageId);
+  };
+
+  // 新增：处理 tts_final 调用 (复用 handleConfirmVoice)
+  const handleTtsFinalCall = async (args: { text: string; gender: string; voice_label: string }, messageId: string) => {
+    // 需要找到包含推荐音色的那条消息
+    const targetMessage = messages.find(msg => msg.id === messageId);
+     if (!targetMessage || !targetMessage.recommendedVoices) {
+        console.error(`无法为消息 ${messageId} 执行 tts_final，找不到推荐音色列表`);
+        const errorMsg: Message = {
+            id: generateId(),
+            content: `抱歉，无法找到需要确认的音色信息。请先确认文本并选择音色。`, 
+            sender: 'ai',
+            error: true,
+        };
+        setMessages(prev => [...prev, errorMsg]);
+        return; 
+    }
+
+    const voiceToConfirm: VoicePreview = {
+      id: `${args.gender}-${args.voice_label}`,
+      label: args.voice_label,
+      gender: args.gender,
+    };
+    // 复用之前的 handleConfirmVoice 逻辑
+    await handleConfirmVoice(voiceToConfirm, messageId);
   };
 
   // 提取DeepSeek可能提供的格式化文本
@@ -399,8 +603,6 @@ const ChatInterface: React.FC = () => {
     const message = messages.find(msg => msg.id === messageId);
     if (!message || !message.formattedText) return;
     
-    setIsGeneratingVoice(true);
-    
     try {
       // 确定性别和音色标签
       const gender = voice.gender;
@@ -434,84 +636,6 @@ const ChatInterface: React.FC = () => {
       };
       
       setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsGeneratingVoice(false);
-    }
-  };
-
-  // 处理消息发送（修改对提取格式化文本的处理）
-  const handleSend = async () => {
-    if (!inputValue.trim() || isLoading || isStreaming) return;
-    
-    // 检查是否已登录，如果未登录则显示登录弹窗 - 暂时禁用登录要求
-    /*
-    if (!isAuthenticated) {
-      setShowLoginModal(true);
-      return;
-    }
-    */
-    
-    // 设置用户已交互
-    if (!hasInteracted) {
-      setHasInteracted(true);
-    }
-    
-    // 添加用户消息
-    const userMessage: Message = {
-      id: generateId(),
-      content: inputValue,
-      sender: 'user'
-    };
-    
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsLoading(true);
-    setApiError(null); // 重置API错误状态
-    
-    try {
-      // 准备API消息
-      const apiMessages = convertToApiMessages([...messages, userMessage]);
-      
-      console.log('发送到API的消息:', apiMessages);
-      
-      // 发送消息到DeepSeek API
-      const response = await chatAPI.sendMessage(apiMessages);
-      
-      console.log('API响应:', response);
-      
-      // 提取可能包含的格式化文本是在renderAIMessage中直接使用的
-      // 不需要存储在组件状态中
-      
-      // 流式生成响应
-      await simulateStreamResponse(response.message);
-      
-    } catch (error: unknown) {
-      console.error('发送消息错误:', error);
-      
-      // 获取错误状态码和详细信息
-      const errorResponse = error as { response?: { status?: number, data?: { detail?: string } } };
-      const errorStatus = errorResponse.response?.status || 500;
-      const errorDetail = errorResponse.response?.data?.detail || '未知错误，请稍后再试';
-      
-      console.log(`API错误 (${errorStatus}):`, errorDetail);
-      
-      // 设置API错误状态
-      setApiError({
-        status: errorStatus,
-        message: errorDetail
-      });
-      
-      // 添加错误消息
-      const errorMessage: Message = {
-        id: generateId(),
-        content: `抱歉，发生了错误 (${errorStatus}): ${errorDetail}`,
-        sender: 'ai',
-        error: true
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -535,9 +659,13 @@ const ChatInterface: React.FC = () => {
 
   // 在渲染AI消息部分添加对音色推荐和预览的支持
   const renderAIMessage = (message: Message) => {
+    // 在函数开始处添加类型守卫或检查，确保 message.recommendedVoices 存在且结构正确
+    const hasMaleVoices = message.recommendedVoices?.male && Array.isArray(message.recommendedVoices.male);
+    const hasFemaleVoices = message.recommendedVoices?.female && Array.isArray(message.recommendedVoices.female);
+    
     return (
       <div className="text-left space-y-3 text-gray-800">
-        <div className="whitespace-pre-wrap">{message.content}</div>
+        <div className="whitespace-pre-wrap">{message.content.replace(/<<<[\s\S]*?>>>/g, '').trim()}</div>
         
         {/* 格式化文本确认按钮 */}
         {extractFormattedText(message.content) && !message.formattedText && (
@@ -552,121 +680,31 @@ const ChatInterface: React.FC = () => {
           </div>
         )}
         
-        {/* 推荐音色区域 */}
-        {message.recommendedVoices && (
-          <div className="mt-6">
-            <h4 className="text-base font-medium mb-2">推荐音色</h4>
-            
-            {/* 男声区域 */}
-            <div className="mb-4">
-              <h5 className="text-sm font-medium mb-2 text-gray-700">男声</h5>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {message.recommendedVoices.male.map(voice => (
-                  <div 
-                    key={voice.id}
-                    className={`p-3 rounded-lg border ${
-                      selectedVoice?.id === voice.id 
-                        ? 'border-primary-500 bg-primary-50' 
-                        : 'border-gray-200 hover:border-primary-300'
-                    } cursor-pointer transition-colors`}
-                  >
-                    <div className="font-medium text-gray-800 mb-2">{voice.label}</div>
-                    
-                    {/* 音频播放区域 */}
-                    {voice.audioUrl ? (
-                      <div className="mb-2">
-                        <audio 
-                          src={voice.audioUrl} 
-                          controls 
-                          className="w-full h-8"
-                        />
-                      </div>
-                    ) : (
-                      <div className="mb-2 py-2 text-center text-sm text-gray-500">
-                        {voice.isLoading ? '加载中...' : '点击试听'}
-                      </div>
-                    )}
-                    
-                    {/* 按钮区域 */}
-                    <div className="flex space-x-2 mt-2">
-                      <button
-                        onClick={() => handlePreviewVoice(voice, message.id)}
-                        className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 focus:outline-none"
-                        disabled={voice.isLoading}
-                      >
-                        {voice.isLoading ? '生成中...' : (voice.audioUrl ? '重新试听' : '试听')}
-                      </button>
-                      
-                      {voice.audioUrl && (
-                        <button
-                          onClick={() => handleConfirmVoice(voice, message.id)}
-                          className="flex-1 px-2 py-1 text-xs bg-primary-100 text-primary-800 rounded hover:bg-primary-200 focus:outline-none"
-                          disabled={isGeneratingVoice}
-                        >
-                          使用
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* 女声区域 */}
-            <div>
-              <h5 className="text-sm font-medium mb-2 text-gray-700">女声</h5>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {message.recommendedVoices.female.map(voice => (
-                  <div 
-                    key={voice.id}
-                    className={`p-3 rounded-lg border ${
-                      selectedVoice?.id === voice.id 
-                        ? 'border-primary-500 bg-primary-50' 
-                        : 'border-gray-200 hover:border-primary-300'
-                    } cursor-pointer transition-colors`}
-                  >
-                    <div className="font-medium text-gray-800 mb-2">{voice.label}</div>
-                    
-                    {/* 音频播放区域 */}
-                    {voice.audioUrl ? (
-                      <div className="mb-2">
-                        <audio 
-                          src={voice.audioUrl} 
-                          controls 
-                          className="w-full h-8"
-                        />
-                      </div>
-                    ) : (
-                      <div className="mb-2 py-2 text-center text-sm text-gray-500">
-                        {voice.isLoading ? '加载中...' : '点击试听'}
-                      </div>
-                    )}
-                    
-                    {/* 按钮区域 */}
-                    <div className="flex space-x-2 mt-2">
-                      <button
-                        onClick={() => handlePreviewVoice(voice, message.id)}
-                        className="flex-1 px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200 focus:outline-none"
-                        disabled={voice.isLoading}
-                      >
-                        {voice.isLoading ? '生成中...' : (voice.audioUrl ? '重新试听' : '试听')}
-                      </button>
-                      
-                      {voice.audioUrl && (
-                        <button
-                          onClick={() => handleConfirmVoice(voice, message.id)}
-                          className="flex-1 px-2 py-1 text-xs bg-primary-100 text-primary-800 rounded hover:bg-primary-200 focus:outline-none"
-                          disabled={isGeneratingVoice}
-                        >
-                          使用
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+        {/* 推荐音色区域 - 使用新的 VoiceSelector 组件 */}
+        {message.recommendedVoices && (hasMaleVoices || hasFemaleVoices) && (
+          <VoiceSelector
+            // 提供默认空数组以防万一
+            maleVoices={hasMaleVoices ? message.recommendedVoices!.male.map(v => ({ ...v, isLoading: v.isLoading ?? false })) : []}
+            femaleVoices={hasFemaleVoices ? message.recommendedVoices!.female.map(v => ({ ...v, isLoading: v.isLoading ?? false })) : []}
+            selectedVoiceId={selectedVoice?.id || null}
+            onPreviewVoice={(voice: Voice) => {
+              // 将 Voice 类型转换为 VoicePreview 类型
+              const voicePreview: VoicePreview = { ...voice }; 
+              handlePreviewVoice(voicePreview, message.id);
+            }}
+            onConfirmVoice={(voice: Voice) => {
+              // 将 Voice 类型转换为 VoicePreview 类型
+              const voicePreview: VoicePreview = { ...voice };
+              handleConfirmVoice(voicePreview, message.id);
+            }}
+            onRefresh={() => {
+              // 确保 message.formattedText 存在才重新推荐
+              if (message.formattedText) {
+                handleRecommendVoiceStylesCall({ text: message.formattedText }, message.id);
+              }
+            }}
+            isLoading={isRecommendingVoices}
+          />
         )}
         
         {/* 音频预览区域 */}
@@ -708,6 +746,7 @@ const ChatInterface: React.FC = () => {
         {/* 最终音频 */}
         {message.finalAudio && (
           <div className="mt-4">
+            <h4 className="text-base font-medium mb-2">最终配音</h4>
             <AudioPlayer 
               audioUrl={message.finalAudio} 
               onDownload={() => downloadAudio(message.finalAudio!)} 
