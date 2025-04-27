@@ -60,6 +60,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # 挂载输出目录为静态资源
 app.mount("/output", StaticFiles(directory=OUTPUT_DIR), name="output")
 app.mount("/client_output", StaticFiles(directory=CLIENT_OUTPUT_DIR), name="client_output")
+app.mount("/prompt_voice", StaticFiles(directory=VOICE_TYPES_DIR), name="prompt_voice")
 
 # 加载模型
 print("正在加载CosyVoice2模型...")

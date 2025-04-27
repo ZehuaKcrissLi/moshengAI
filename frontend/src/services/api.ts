@@ -323,20 +323,18 @@ const TTS_API_BASE_URL = 'http://localhost:8080'; // TTS 服务运行在 8080 �
 
 // API服务 - 修改 ttsAPI
 export const ttsAPI = {
-  // 获取可用的声音类型 - 这个可能也需要访问 8080 端口？假设它也在 TTS 服务上
+  // 获取可用的声音类型
   getVoiceTypes: async (): Promise<VoiceTypes> => {
     try {
-      // 直接调用 8080 端口
       const response = await axios.get(`${TTS_API_BASE_URL}/voice_types`);
-      // 注意：返回的数据结构可能需要调整，假设 voice_types 在顶层
-      return response.data.voice_types || response.data; 
+      return response.data.voice_types || response.data;
     } catch (error) {
       console.error('获取声音类型失败:', error);
       throw error;
     }
   },
 
-  // 合成语音
+  // 合成语音 - 返回绝对 URL
   synthesize: async (text: string, gender: string, voiceLabel: string): Promise<TTSResponse> => {
     try {
       const formData = new FormData();
@@ -344,22 +342,27 @@ export const ttsAPI = {
       formData.append('gender', gender);
       formData.append('voice_label', voiceLabel);
 
-      // 直接调用 8080 端口的 /synthesize
-      const response = await axios.post(`${TTS_API_BASE_URL}/synthesize`, formData, {
-        headers: {
-          // Content-Type 由浏览器根据 FormData 自动设置，通常不需要手动指定
-          // 'Content-Type': 'multipart/form-data',
-          'Accept': 'application/json' // 确保我们期望得到 JSON 响应
+      const response = await axios.post<{success: boolean, message: string, wav_url: string, mp3_url: string, text: string}>(
+        `${TTS_API_BASE_URL}/synthesize`, 
+        formData, 
+        {
+          headers: { 'Accept': 'application/json' }
         }
-      });
-      return response.data;
+      );
+      // Prepend TTS base URL to relative paths
+      const absoluteData = {
+        ...response.data,
+        wav_url: response.data.wav_url ? `${TTS_API_BASE_URL}${response.data.wav_url}` : '',
+        mp3_url: response.data.mp3_url ? `${TTS_API_BASE_URL}${response.data.mp3_url}` : ''
+      };
+      return absoluteData;
     } catch (error) {
       console.error('语音合成失败:', error);
       throw error;
     }
   },
 
-  // 确认脚本
+  // 确认脚本 - 返回绝对 URL
   confirmScript: async (
     text: string,
     gender: string,
@@ -368,20 +371,29 @@ export const ttsAPI = {
     sessionId?: string
   ): Promise<ConfirmScriptResponse> => {
     try {
-      // 直接调用 8080 端口的 /confirm_script
-      const response = await axios.post(`${TTS_API_BASE_URL}/confirm_script`, {
-        text,
-        gender,
-        voice_label: voiceLabel,
-        user_id: userId,
-        session_id: sessionId
-      }, {
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-      });
-      return response.data;
+      const response = await axios.post<ConfirmScriptResponse>(
+          `${TTS_API_BASE_URL}/confirm_script`, 
+          {
+            text,
+            gender,
+            voice_label: voiceLabel,
+            user_id: userId,
+            session_id: sessionId
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          }
+      );
+       // Prepend TTS base URL to relative paths
+       const absoluteData = {
+        ...response.data,
+        wav_url: response.data.wav_url ? `${TTS_API_BASE_URL}${response.data.wav_url}` : '',
+        mp3_url: response.data.mp3_url ? `${TTS_API_BASE_URL}${response.data.mp3_url}` : ''
+      };
+      return absoluteData;
     } catch (error) {
       console.error('确认脚本失败:', error);
       throw error;
