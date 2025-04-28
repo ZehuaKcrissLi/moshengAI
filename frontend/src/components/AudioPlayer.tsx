@@ -11,8 +11,8 @@ interface AudioPlayerProps {
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ 
   audioUrl, 
   onDownload,
-  accent = "美式口音",
-  voiceStyle = "专业" 
+  accent = "",
+  voiceStyle = "" 
 }) => {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
