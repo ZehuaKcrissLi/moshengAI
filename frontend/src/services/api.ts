@@ -319,7 +319,8 @@ export interface ConfirmScriptResponse {
 }
 
 // 定义 TTS 服务的 Base URL
-const TTS_API_BASE_URL = 'http://localhost:8080'; // TTS 服务运行在 8080 端口
+// const TTS_API_BASE_URL = 'http://localhost:8080'; // TTS 服务运行在 8080 端口
+const TTS_API_BASE_URL = import.meta.env.VITE_TTS_BASE_URL || 'http://localhost:8080';
 
 // API服务 - 修改 ttsAPI
 export const ttsAPI = {

@@ -55,7 +55,9 @@ interface ChatSession {
 }
 
 // 定义后端 API 基础 URL (端口 8000)
-const API_BASE_URL_FOR_PREVIEW = 'http://localhost:8000'; 
+// const API_BASE_URL_FOR_PREVIEW = 'http://localhost:8000'; 
+// const API_BASE_URL_FOR_PREVIEW = 'https://lou-twiki-scope-pos.trycloudflare.com';
+const API_BASE_URL_FOR_PREVIEW = import.meta.env.VITE_STATIC_BASE_URL || 'http://localhost:8000/';
 
 // 将前端Message格式转换为API Message格式
 const convertToApiMessages = (messages: Message[]): MessageType[] => {
@@ -74,16 +76,9 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const INITIAL_MESSAGES: Message[] = [
   {
     id: generateId(),
-    content: '欢迎使用魔声AI配音助手！我可以帮您生成高质量的商业英文配音。请告诉我您的配音需求，例如主题、目标受众、风格等，或者直接提供您想要翻译和配音的中文内容。',
+    content: '欢迎使用魔声AI配音助手！我可以帮您生成高质量的配音。您可以直接给我您想要配音的文本，或者告诉我您想要配音的场景，例如：门店促销、企业宣传片、产品介绍、教育课程、广告配音等，我可以和您一起共创配音文案。',
     sender: 'ai'
   }
-];
-
-// 预设用例
-const PRESET_EXAMPLES = [
-  { title: '企业宣传片配音', desc: '美式口音专业风格' },
-  { title: '教育课程配音', desc: '英式口音清晰风格' },
-  { title: '产品介绍视频', desc: '美式口音活力风格' }
 ];
 
 const ChatInterface: React.FC = () => {
@@ -298,14 +293,6 @@ const ChatInterface: React.FC = () => {
     setStreamingMessage('');
     setIsLoading(false); // 流式结束后停止 loading
     return newId; // 返回新消息的 ID
-  };
-
-  // 使用预设示例
-  const handleUseExample = (title: string) => {
-    setInputValue(`请帮我生成一段关于"${title}"的配音文案`);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
   };
 
   // 新增：处理函数调用的副作用
@@ -566,8 +553,8 @@ const ChatInterface: React.FC = () => {
     const hasFemaleVoices = message.recommendedVoices?.female && Array.isArray(message.recommendedVoices.female);
     
     return (
-      <div className="text-left space-y-3 text-gray-800">
-        <div className="whitespace-pre-wrap">{message.content.replace(/<<<[\s\S]*?>>>/g, '').trim()}</div>
+      <div className="text-left space-y-3 text-gray-800 px-1 sm:px-0">
+        <div className="whitespace-pre-wrap break-words">{message.content.replace(/<<<[\s\S]*?>>>/g, '').trim()}</div>
         
         {/* 格式化文本确认按钮 */}
         {extractFormattedText(message.content) && !message.formattedText && (
@@ -638,7 +625,7 @@ const ChatInterface: React.FC = () => {
         
         {/* 最终音频 */}
         {message.finalAudio && (
-          <div className="mt-4">
+          <div className="mt-4 w-full max-w-xs sm:max-w-sm">
             <h4 className="text-base font-medium mb-2">最终配音</h4>
             <AudioPlayer 
               audioUrl={message.finalAudio} 
@@ -651,31 +638,17 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="w-full h-full flex flex-col overflow-hidden bg-gray-50">
       {!hasInteracted ? (
         // 初始欢迎界面 - 居中显示
-        <div className="w-full h-full flex flex-col items-center justify-center">
-          <div className="w-full max-w-4xl px-4">
-            <div className="text-center mb-10">
-              <LogoIcon className="h-20 w-20 mx-auto text-primary-600 mb-6" />
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">魔声AI配音助手</h1>
-              <p className="text-lg text-gray-600 mx-auto">
+        <div className="w-full h-full flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-4xl">
+            <div className="text-center mb-8 sm:mb-10">
+              <LogoIcon className="h-16 w-16 sm:h-20 sm:w-20 mx-auto text-primary-600 mb-4 sm:mb-6" />
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">魔声AI配音助手</h1>
+              <p className="text-base sm:text-lg text-gray-600 mx-auto">
                 {messages[0].content}
               </p>
-            </div>
-
-            {/* 预设示例 */}
-            <div className="mb-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {PRESET_EXAMPLES.map((example, index) => (
-                <div 
-                  key={index}
-                  onClick={() => handleUseExample(example.title)}
-                  className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-primary-500 hover:shadow-md transition-all"
-                >
-                  <h3 className="font-medium text-gray-800">{example.title}</h3>
-                  <p className="text-xs text-gray-500 mt-1">{example.desc}</p>
-                </div>
-              ))}
             </div>
             
             {/* 输入区域 */}
@@ -686,15 +659,15 @@ const ChatInterface: React.FC = () => {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="输入您的配音需求或中文内容..."
-                  className="chat-input pr-12"
+                  placeholder="输入您的配音需求或配音文稿..."
+                  className="chat-input pr-10 sm:pr-12"
                   rows={1}
                   autoFocus
                 />
                 <button
                   onClick={handleSend}
                   disabled={!inputValue.trim() || isLoading}
-                  className={`absolute right-2 p-2 rounded-full ${
+                  className={`absolute right-1 sm:right-2 p-2 rounded-full ${
                     !inputValue.trim() || isLoading
                       ? 'text-gray-400'
                       : 'text-primary-600 hover:bg-primary-50'
@@ -736,21 +709,25 @@ const ChatInterface: React.FC = () => {
         <>
           {/* 消息区域 */}
           <div className="flex-1 w-full h-full overflow-y-auto scrollbar-thin bg-white">
-            <div className="w-full max-w-3xl mx-auto py-4 px-4">
+            <div className="w-full max-w-full sm:max-w-3xl mx-auto py-3 sm:py-4 px-2 sm:px-4">
               {messages.map((message, index) => (
                 index === 0 ? null : (
                   <div 
                     key={message.id}
-                    className={`mb-6 ${message.sender === 'user' ? 'text-right' : 'text-left'}`}
+                    className={`mb-4 sm:mb-6 flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     {message.sender === 'user' ? (
-                      <div className="inline-block max-w-[90%] md:max-w-[75%]">
+                      <div className="inline-block max-w-[85%] sm:max-w-[75%]">
                         <div className="chat-bubble user">
-                          <div className="whitespace-pre-wrap">{message.content}</div>
+                          <div className="whitespace-pre-wrap break-words">{message.content}</div>
                         </div>
                       </div>
                     ) : (
-                      renderAIMessage(message)
+                      <div className="inline-block max-w-full">
+                         <div className="chat-bubble ai">
+                            {renderAIMessage(message)}
+                         </div>
+                       </div>
                     )}
                   </div>
                 )
@@ -793,7 +770,7 @@ const ChatInterface: React.FC = () => {
           
           {/* 输入区域 */}
           <div className="w-full border-t border-gray-200 bg-white">
-            <div className="w-full max-w-3xl mx-auto p-4">
+            <div className="w-full max-w-full sm:max-w-3xl mx-auto p-2 sm:p-4">
               <div className="flex items-center relative">
                 <textarea
                   ref={inputRef}
@@ -801,14 +778,14 @@ const ChatInterface: React.FC = () => {
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="输入您的配音需求或中文内容..."
-                  className="chat-input pr-12"
+                  className="chat-input pr-10 sm:pr-12"
                   rows={1}
                   disabled={isStreaming}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!inputValue.trim() || isLoading || isStreaming}
-                  className={`absolute right-2 p-2 rounded-full ${
+                  className={`absolute right-1 sm:right-2 p-2 rounded-full ${
                     !inputValue.trim() || isLoading || isStreaming
                       ? 'text-gray-400'
                       : 'text-primary-600 hover:bg-primary-50'

@@ -53,7 +53,7 @@ else:
 
 @app.get("/")
 def read_root():
-    return {"message": "欢迎使用魔声AI - AI商业英文配音服务"}
+    return {"message": "欢迎使用魔声AI - AI商业多语言配音服务"}
 
 @app.post("/api/audio-previews", response_model=List[AudioPreviewResponse])
 async def generate_audio_previews(request: TextToSpeechRequest):

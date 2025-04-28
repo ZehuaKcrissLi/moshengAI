@@ -368,7 +368,7 @@ def get_voice_types() -> Dict[str, List[str]]:
             voices = []
             # 遍历该性别目录下的所有wav文件
             for file in os.listdir(gender_path):
-                if file.endswith(".wav"):
+                if file.endswith(".wav") or file.endswith(".mp3"):
                     # 获取文件名（不含扩展名）作为声音标签
                     voice_label = os.path.splitext(file)[0]
                     voices.append(voice_label)

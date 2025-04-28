@@ -6,6 +6,7 @@ import json
 import logging
 import random
 import re
+from collections import defaultdict
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -66,11 +67,11 @@ SYSTEM_PROMPT = """你是魔声AI，一个专业的AI配音助手。你专门帮
 注意：咱们一定要购入一张1.99的抢锅卷 
 活动二：充值500元享受95折还能享受送锅
   
-活动日期:12月2号至12月18号 活动不累计参加，不参与银行活动
+活动日期:12月2号至12月18号 活动不累计参加，不参与银行活动，电话13756781720
 
 你需要整理成以下格式：
 ```
-锅圈食汇泉山湖店，双十二活动开始啦，活动一，消费一百二十八元送锅，二十厘米电火锅，二十六厘米煎烤盘，露营烧烤炉，三十二厘米不锈钢鸳鸯锅以上四选一。注意，咱们一定要购入一张一点九九的抢锅券。活动二，充值五百元享受九五折还能享受送锅。活动日期，十二月二号至十二月十八号，活动不累计参加，不参与银行活动。
+锅圈食汇泉山湖店，双十二活动开始啦，活动一，消费一百二十八元送锅，二十厘米电火锅，二十六厘米煎烤盘，露营烧烤炉，三十二厘米不锈钢鸳鸯锅以上四选一。注意，咱们一定要购入一张一点九九的抢锅券。活动二，充值五百元享受九五折还能享受送锅。活动日期，十二月二号至十二月十八号，活动不累计参加，不参与银行活动。电话13756781720
 ```
 然后返回整理好的文稿给用户，并询问："请确认是否使用这段内容进行配音？确认后我将为您推荐合适的促销风格音色。" （不要立即调用函数）
 - **用户确认文稿后**: 如果用户确认（例如回复"是的"、"确认"），你 **必须** 调用 `recommend_voice_styles` 函数，例如：
@@ -203,27 +204,19 @@ async def recommend_voice_styles(
     count: int = Body(3, embed=True)
 ):
     """
-    根据文本内容推荐合适的音色风格
-    
-    参数:
-    - text: 用户的配音文本
-    - count: 每种性别推荐的音色数量
-    
-    返回:
-    - 推荐的男声和女声音色
+    根据文本内容推荐合适的音色风格, 优先确保各标签有代表.
     """
     try:
-        logger.info(f"收到音色推荐请求，文本长度: {len(text)}")
-        
+        logger.info(f"收到音色推荐请求，文本: '{text[:50]}...', count: {count}")
+
         # 构建系统消息
         system_message = {
             "role": "system", 
             "content": """你是一个专业的配音顾问，你可以根据文本内容推荐合适的音色风格。
-            你需要分析文本的语调、内容和使用场景，识别其所属的风格类别（如促销广告、企业宣传、温馨提示等），
+            你需要分析文本的语调、内容和使用场景，识别其所属的风格类别（如促销广告、门店叫卖、企业宣传、温馨提示、专题纪录、颁奖词、亲切讲述、党政专题、童真模仿、知性解说等），
             然后根据这些特点，从以下风格标签中选择最合适的几个：
             
-            大气、磁性、质感、浑厚、激情、沉稳、温情、亲切、知性、温暖、稳重、英文
-            
+            大气|磁性|质感|浑厚|激情|沉稳|温情|亲切|知性|温暖|稳重|英文|促销|男童|女童|中年|中老年|专题|介绍|党政|故事|节目|颁奖|年会
             你的回答必须是JSON格式，只包含一个字段"style_tags"，值为风格标签数组。
             例如: {"style_tags": ["大气", "磁性", "质感"]}
             """
@@ -291,7 +284,7 @@ async def recommend_voice_styles(
                     style_tags = style_data.get("style_tags", [])
                 else:
                     # 如果没有找到JSON，尝试直接从文本中提取标签
-                    tags = re.findall(r'["\'](大气|磁性|质感|浑厚|激情|沉稳|温情|亲切|知性|温暖|稳重|英文)["\']', ai_message)
+                    tags = re.findall(r'["\'](大气|磁性|质感|浑厚|激情|沉稳|温情|亲切|知性|温暖|稳重|英文|促销|男童|女童|中年|中老年|专题|介绍|党政|故事|节目|颁奖|年会)["\']', ai_message)
                     style_tags = list(set(tags))  # 去重
             except Exception as e:
                 logger.error(f"解析风格标签失败: {str(e)}")
@@ -300,55 +293,89 @@ async def recommend_voice_styles(
             
             logger.info(f"提取的风格标签: {style_tags}")
             
-            # 如果没有提取到标签，使用默认标签
             if not style_tags:
                 style_tags = ["大气", "质感", "沉稳"]
-            
-            # 从项目根目录获取音色库路径
+                logger.info(f"未提取到标签，使用默认: {style_tags}")
+
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
             voice_dir = os.path.join(project_root, "prompt_voice")
             male_dir = os.path.join(voice_dir, "male")
             female_dir = os.path.join(voice_dir, "female")
-            
-            # 获取所有音色文件
-            male_voices = [f for f in os.listdir(male_dir) if f.endswith(".wav")]
-            female_voices = [f for f in os.listdir(female_dir) if f.endswith(".wav")]
-            
-            # 筛选符合风格标签的音色
-            matched_male_voices = []
-            matched_female_voices = []
-            
-            for voice in male_voices:
-                if any(tag in voice for tag in style_tags):
-                    matched_male_voices.append(os.path.splitext(voice)[0])
-            
-            for voice in female_voices:
-                if any(tag in voice for tag in style_tags):
-                    matched_female_voices.append(os.path.splitext(voice)[0])
-            
-            # 如果匹配结果太少，就从所有音色中随机选取
-            if len(matched_male_voices) < count:
-                all_male_voices = [os.path.splitext(f)[0] for f in male_voices]
-                matched_male_voices.extend(random.sample([v for v in all_male_voices if v not in matched_male_voices], 
-                                                    min(count - len(matched_male_voices), len(all_male_voices))))
-            
-            if len(matched_female_voices) < count:
-                all_female_voices = [os.path.splitext(f)[0] for f in female_voices]
-                matched_female_voices.extend(random.sample([v for v in all_female_voices if v not in matched_female_voices], 
-                                                      min(count - len(matched_female_voices), len(all_female_voices))))
-            
-            # 确保不超过指定数量
-            if len(matched_male_voices) > count:
-                matched_male_voices = random.sample(matched_male_voices, count)
-            
-            if len(matched_female_voices) > count:
-                matched_female_voices = random.sample(matched_female_voices, count)
-            
+
+            all_male_voices_files = [f for f in os.listdir(male_dir) if f.endswith(".wav")]
+            all_female_voices_files = [f for f in os.listdir(female_dir) if f.endswith(".wav")]
+            all_male_voices = [os.path.splitext(f)[0] for f in all_male_voices_files]
+            all_female_voices = [os.path.splitext(f)[0] for f in all_female_voices_files]
+
+            def select_voices_for_gender(all_voices: List[str], target_tags: List[str], num_required: int) -> List[str]:
+                """为指定性别选择音色的核心逻辑 - 修正版"""
+                if not all_voices:
+                    return []
+
+                final_selection = set()
+                voices_used = set() # 跟踪已被选中的音色
+
+                # 1. 优先确保每个标签至少有一个代表
+                random.shuffle(target_tags)
+                for tag in target_tags:
+                    if len(final_selection) >= num_required:
+                        break
+
+                    # 在 *所有* 音色中查找包含当前标签且 *尚未被使用* 的音色
+                    tag_specific_matches = [
+                        voice for voice in all_voices
+                        if tag in voice and voice not in voices_used
+                    ]
+
+                    if tag_specific_matches:
+                        chosen_voice = random.choice(tag_specific_matches)
+                        final_selection.add(chosen_voice)
+                        voices_used.add(chosen_voice)
+
+                # 2. 如果名额未满，从所有 *至少匹配一个标签* 但 *尚未被使用* 的音色中随机补充
+                needed_more = num_required - len(final_selection)
+                if needed_more > 0:
+                    # 找到所有匹配至少一个标签的音色
+                    all_matching_voices = {
+                        voice for voice in all_voices
+                        if any(tag in voice for tag in target_tags)
+                    }
+                    # 排除已使用的
+                    available_matching = list(all_matching_voices - voices_used)
+                    if available_matching:
+                        fillers = random.sample(available_matching, min(needed_more, len(available_matching)))
+                        final_selection.update(fillers)
+                        voices_used.update(fillers)
+
+                # 3. 如果名额还未满，从所有 *剩余* 音色中（不匹配任何标签且未被使用）随机补充
+                needed_even_more = num_required - len(final_selection)
+                if needed_even_more > 0:
+                    available_others = [v for v in all_voices if v not in voices_used]
+                    if available_others:
+                        fillers = random.sample(available_others, min(needed_even_more, len(available_others)))
+                        final_selection.update(fillers)
+                        # voices_used.update(fillers) # 这里不需要再更新，因为不会再用到
+
+                # 4. 最终结果处理
+                final_list = list(final_selection)
+                # 如果因为某种原因选多了（理论上不太可能），裁剪
+                if len(final_list) > num_required:
+                    final_list = random.sample(final_list, num_required)
+
+                random.shuffle(final_list) # 最后打乱顺序
+                return final_list
+
+            selected_male_voices = select_voices_for_gender(all_male_voices, style_tags, count)
+            selected_female_voices = select_voices_for_gender(all_female_voices, style_tags, count)
+
+            logger.info(f"最终推荐男声: {selected_male_voices}")
+            logger.info(f"最终推荐女声: {selected_female_voices}")
+
             return {
                 "success": True,
                 "recommended_styles": style_tags,
-                "male_voices": matched_male_voices,
-                "female_voices": matched_female_voices
+                "male_voices": selected_male_voices,
+                "female_voices": selected_female_voices
             }
             
     except HTTPException:

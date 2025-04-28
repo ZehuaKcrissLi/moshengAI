@@ -250,7 +250,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     <aside className={`h-full flex flex-col ${isOpen ? 'w-full' : 'w-0'} transition-width duration-300 overflow-hidden`}>
       {/* 移动端关闭按钮 */}
       <div className="lg:hidden absolute top-4 right-3">
-        <button
+        <button 
           onClick={() => setIsOpen(false)}
           className="p-1 rounded hover:bg-gray-200"
         >
@@ -269,7 +269,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
       {/* 侧边栏内容 */}
       <div className="h-full flex flex-col p-3">
         {/* 新建按钮 */}
-        <button
+          <button 
           onClick={handleNewChat}
           className="flex items-center justify-center w-full py-2.5 px-3 mb-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
@@ -297,20 +297,20 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               onClick={() => setActiveTab('recent')}
             >
               最近使用
-            </button>
-            <button
+          </button>
+          <button 
               className={`flex-1 py-3 text-center font-medium text-sm ${
                 activeTab === 'saved' 
                   ? 'text-primary-600 border-b-2 border-primary-600' 
                   : 'text-gray-500 hover:text-gray-700'
               }`}
               onClick={() => setActiveTab('saved')}
-            >
-              已保存
-            </button>
-          </div>
+          >
+            已保存
+          </button>
         </div>
-        
+      </div>
+      
         {/* 内容列表 - 固定高度并填充可用空间 */}
         <div className="flex-1 overflow-y-auto scrollbar-thin min-h-[calc(100vh-180px)]">
           {activeTab === 'recent' ? (
@@ -318,7 +318,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               {groupedChats.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 h-full flex items-center justify-center">
                   <p>暂无历史记录</p>
-                </div>
+          </div>
               ) : (
                 <>
                   {groupedChats.map((group, groupIndex) => (
@@ -349,7 +349,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                 <h3 className="text-sm font-medium text-gray-800 truncate">{chat.title}</h3>
                               )}
                               <p className="text-xs text-gray-500 mt-1">{chat.date}</p>
-                            </div>
+                  </div>
                             
                             {isRenaming !== chat.id && hoveredChatId === chat.id && (
                               <div className="relative" ref={menuRef}>
@@ -419,16 +419,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                                           </svg>
                                           删除
                                         </button>
-                                      </li>
-                                    </ul>
-                                  </div>
+              </li>
+          </ul>
+        </div>
                                 )}
                               </div>
                             )}
                           </div>
                         </div>
                       ))}
-                    </div>
+      </div>
                   ))}
                 </>
               )}
@@ -438,7 +438,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               {savedAudioFiles.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 h-full flex items-center justify-center">
                   <p>暂无已保存的音频</p>
-                </div>
+          </div>
               ) : (
                 <>
                   {savedAudioFiles.map((audio) => (
@@ -447,7 +447,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                         <div>
                           <h3 className="text-sm font-medium text-gray-800">{audio.title}</h3>
                           <p className="text-xs text-gray-500 mt-1">{audio.date} · {audio.duration}</p>
-                        </div>
+          </div>
                         <button 
                           onClick={(e) => handleDownloadAudio(e, audio)}
                           className="p-1.5 text-gray-500 hover:text-primary-600 hover:bg-primary-50 rounded"
@@ -465,8 +465,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
                               strokeWidth={2} 
                               d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" 
                             />
-                          </svg>
-                        </button>
+            </svg>
+          </button>
                       </div>
                     </div>
                   ))}
