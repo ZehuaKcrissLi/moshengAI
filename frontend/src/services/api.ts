@@ -335,7 +335,7 @@ export const ttsAPI = {
     }
   },
 
-  // 合成语音 - 返回绝对 URL
+  // 合成语音 - 异步接口，内部自动轮询直到任务完成，返回绝对 URL
   synthesize: async (text: string, gender: string, voiceLabel: string): Promise<TTSResponse> => {
     try {
       const formData = new FormData();
@@ -343,20 +343,50 @@ export const ttsAPI = {
       formData.append('gender', gender);
       formData.append('voice_label', voiceLabel);
 
-      const response = await axios.post<{success: boolean, message: string, wav_url: string, mp3_url: string, text: string}>(
-        `${TTS_API_BASE_URL}/synthesize`, 
-        formData, 
+      // 1. 发送合成请求
+      const initialResp = await axios.post<{ task_id: string; status: string; status_url: string }>(
+        `${TTS_API_BASE_URL}/synthesize`,
+        formData,
         {
-          headers: { 'Accept': 'application/json' }
+          headers: { 'Accept': 'application/json' },
+          validateStatus: () => true // 允许 202
         }
       );
-      // Prepend TTS base URL to relative paths
-      const absoluteData = {
-        ...response.data,
-        wav_url: response.data.wav_url ? `${TTS_API_BASE_URL}${response.data.wav_url}` : '',
-        mp3_url: response.data.mp3_url ? `${TTS_API_BASE_URL}${response.data.mp3_url}` : ''
+
+      if (initialResp.status !== 202) {
+        throw new Error(`请求被拒绝: ${initialResp.statusText}`);
+      }
+
+      const { task_id, status_url } = initialResp.data;
+      if (!task_id || !status_url) {
+        throw new Error('服务器未返回 task_id 或 status_url');
+      }
+
+      // 2. 轮询任务状态
+      const poll = async (): Promise<TTSResponse> => {
+        const resp = await axios.get<{
+          status: string;
+          result?: { wav_url: string; mp3_url: string; text: string; message: string; success: boolean };
+          error?: string;
+        }>(`${TTS_API_BASE_URL}${status_url}`);
+        const data = resp.data;
+        if (data.status === 'completed' && data.result) {
+          const abs = {
+            ...data.result,
+            wav_url: data.result.wav_url ? `${TTS_API_BASE_URL}${data.result.wav_url}` : '',
+            mp3_url: data.result.mp3_url ? `${TTS_API_BASE_URL}${data.result.mp3_url}` : ''
+          } as TTSResponse;
+          return abs;
+        }
+        if (data.status === 'failed') {
+          throw new Error(data.error || '语音合成任务失败');
+        }
+        // pending 或 processing
+        await new Promise((res) => setTimeout(res, 20000));
+        return poll();
       };
-      return absoluteData;
+
+      return await poll();
     } catch (error) {
       console.error('语音合成失败:', error);
       throw error;

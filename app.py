@@ -12,12 +12,13 @@ import shutil
 import numpy as np
 import torch
 import torchaudio
-from fastapi import FastAPI, HTTPException, Form, Response, File, UploadFile, Body, Request
+from fastapi import FastAPI, HTTPException, Form, Response, File, UploadFile, Body, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import ffmpeg  # 用于音频格式转换
+from enum import Enum
 
 # 添加CosyVoice路径
 COSYVOICE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "moshengAI_tts/CosyVoice")
@@ -85,7 +86,7 @@ else:
     prompt_speech_16k = torch.zeros(16000)
 
 # 定义长文本阈值和分割参数
-MAX_TEXT_LENGTH = 60  # 每段最大字符数
+MAX_TEXT_LENGTH = 100  # 每段最大字符数
 # 中文分割符号
 CHINESE_SPLIT_CHARS = ["。", "！", "？", "；", "，", "、"]
 # 英文分割符号
@@ -441,126 +442,111 @@ async def get_available_voice_types():
         print(f"获取声音类型失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"获取声音类型失败: {str(e)}")
 
-@app.post("/synthesize")
-async def synthesize(
-    text: str = Form(...), 
-    gender: str = Form(...),
-    voice_label: str = Form(...),
-    request: Request = None
-):
-    """
-    将文本转换为语音
-    
-    参数:
-    - text: 要合成的文本
-    - gender: 性别（男声/女声）
-    - voice_label: 声音标签
-    - request: 请求对象，用于检测请求源
-    
-    返回:
-    - 语音文件或包含文件URL的JSON响应
-    """
+# == 新增: 任务状态管理 ==
+class TaskState(str, Enum):
+    pending = "pending"
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
+
+# 全局任务存储（简单内存版）
+SYNTHESIS_TASKS: Dict[str, Dict[str, Any]] = {}
+
+
+def _run_synthesis_task(task_id: str, text: str, gender: str, voice_label: str):
+    """后台执行真正的语音合成，并更新任务状态"""
+    global SYNTHESIS_TASKS
+    task_ref = SYNTHESIS_TASKS.get(task_id)
+    if not task_ref:  # 任务可能已被删除
+        return
+    task_ref["status"] = TaskState.processing
     try:
-        print(f"收到合成请求: '{text}', 性别: {gender}, 声音: {voice_label}")
-        
+        # ======= 以下逻辑复用原 /synthesize 的核心部分 =======
         # 获取声音文件路径和文本文件路径
         voice_path, text_path = get_voice_path(gender, voice_label)
-        
         # 加载声音提示
         prompt_speech_16k, prompt_text = load_voice_prompt(voice_path, text_path)
-        
         # 生成唯一文件名
         output_id = uuid.uuid4()
         final_output_path = os.path.join(OUTPUT_DIR, f"{output_id}.wav")
-        
         # 分割长文本
         text_segments = split_text(text)
-        print(f"文本已分割为{len(text_segments)}段")
-        
-        # 临时音频文件路径列表
         temp_audio_files = []
-        
-        # 逐段合成语音
         for i, segment in enumerate(text_segments):
-            print(f"开始合成第{i+1}/{len(text_segments)}段: '{segment}'")
-            
-            # 临时文件路径
             temp_output_path = os.path.join(OUTPUT_DIR, f"{output_id}_part{i}.wav")
-            
-            # 合成语音
-            for j, result in enumerate(cosyvoice.inference_zero_shot(segment, prompt_text, prompt_speech_16k, stream=False)):
+            for _, result in enumerate(cosyvoice.inference_zero_shot(segment, prompt_text, prompt_speech_16k, stream=False)):
                 tts_speech = result['tts_speech']
                 torchaudio.save(temp_output_path, tts_speech, cosyvoice.sample_rate)
-                print(f"已保存第{i+1}段语音文件: {temp_output_path}")
-                break  # 只保存第一个结果
-            
+                break
             temp_audio_files.append(temp_output_path)
-        
-        # 拼接所有音频段
+        # 拼接
         if len(temp_audio_files) > 1:
-            print(f"正在拼接{len(temp_audio_files)}个音频文件...")
             concatenate_audio(temp_audio_files, final_output_path)
-            print(f"已拼接所有音频段: {final_output_path}")
         else:
-            # 单段音频直接使用
             final_output_path = temp_audio_files[0]
-        
-        # 转换为MP3格式
+        # 转 MP3
         mp3_path = convert_wav_to_mp3(final_output_path)
         mp3_filename = os.path.basename(mp3_path)
         wav_filename = os.path.basename(final_output_path)
-        
-        # 删除临时文件
+        # 删除段文件
         if len(temp_audio_files) > 1:
-            for temp_file in temp_audio_files:
+            for tmp in temp_audio_files:
                 try:
-                    os.remove(temp_file)
-                    print(f"已删除临时文件: {temp_file}")
-                except Exception as e:
-                    print(f"删除临时文件失败: {str(e)}")
-        
-        # 检查请求头，判断是来自浏览器的直接请求还是API调用
-        user_agent = request.headers.get("user-agent", "").lower() if request else ""
-        accept_header = request.headers.get("accept", "") if request else ""
-        
-        print(f"User-Agent: {user_agent}")
-        print(f"Accept: {accept_header}")
-        
-        # 从HTML页面直接调用时，通常是浏览器请求，返回直接的文件
-        if request and 'text/html' in accept_header or ('mozilla' in user_agent or 'chrome' in user_agent or 'safari' in user_agent):
-            if 'application/json' in accept_header:
-                # 如果请求明确要求JSON响应，则优先返回JSON
-                print("检测到API请求，返回JSON响应")
-                return JSONResponse({
-                    "success": True,
-                    "message": "语音合成成功",
-                    "wav_url": f"/output/{wav_filename}",
-                    "mp3_url": f"/output/{mp3_filename}",
-                    "text": text
-                })
-            else:
-                # 返回直接的音频文件
-                print("检测到浏览器请求，直接返回音频文件")
-                return FileResponse(
-                    path=mp3_path,
-                    filename=mp3_filename,
-                    media_type="audio/mpeg"
-                )
-        
-        # 否则返回JSON响应（用于API调用）
-        print("返回JSON响应")
-        return JSONResponse({
+                    os.remove(tmp)
+                except Exception:
+                    pass
+        # 更新完成状态和结果
+        task_ref["status"] = TaskState.completed
+        task_ref["result"] = {
             "success": True,
             "message": "语音合成成功",
             "wav_url": f"/output/{wav_filename}",
             "mp3_url": f"/output/{mp3_filename}",
             "text": text
-        })
+        }
     except Exception as e:
-        print(f"合成过程中出错: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"语音合成失败: {str(e)}")
+        task_ref["status"] = TaskState.failed
+        task_ref["error"] = str(e)
+
+
+# == 修改 /synthesize 接口 ==
+@app.post("/synthesize")
+async def synthesize(
+    background_tasks: BackgroundTasks,
+    text: str = Form(...),
+    gender: str = Form(...),
+    voice_label: str = Form(...),
+):
+    """异步语音合成：立即返回 202 并在后台执行任务"""
+    try:
+        task_id = str(uuid.uuid4())
+        SYNTHESIS_TASKS[task_id] = {
+            "status": TaskState.pending,
+            "result": None,
+            "error": None
+        }
+        # 将耗时任务加入后台
+        background_tasks.add_task(_run_synthesis_task, task_id, text, gender, voice_label)
+        # 返回 202 与任务信息
+        return JSONResponse(
+            {
+                "task_id": task_id,
+                "status": TaskState.pending,
+                "status_url": f"/synthesis_tasks/{task_id}/status"
+            },
+            status_code=202,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"无法创建合成任务: {str(e)}")
+
+
+# == 任务状态查询接口 ==
+@app.get("/synthesis_tasks/{task_id}/status")
+async def get_synthesis_task_status(task_id: str):
+    task = SYNTHESIS_TASKS.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return task
 
 @app.post("/confirm_script")
 async def confirm_script(

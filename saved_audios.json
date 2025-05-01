@@ -35,5 +35,31 @@
     "session_id": null,
     "gender": "男声",
     "voice_label": "男声582激情浑厚风格"
+  },
+  {
+    "id": "79fc0880-ab92-45f6-82e1-3542ef85b742",
+    "text": "好消息，好消息！魔声AI语音合成全面升级了！促销配音一次搞定，不信你就试试看！全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481",
+    "timestamp": "2025-04-29 00:39:46",
+    "wav_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/79fc0880-ab92-45f6-82e1-3542ef85b742.wav",
+    "mp3_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/79fc0880-ab92-45f6-82e1-3542ef85b742.mp3",
+    "wav_url": "/client_output/79fc0880-ab92-45f6-82e1-3542ef85b742.wav",
+    "mp3_url": "/client_output/79fc0880-ab92-45f6-82e1-3542ef85b742.mp3",
+    "user_id": null,
+    "session_id": null,
+    "gender": "男声",
+    "voice_label": "男声508大气磁性"
+  },
+  {
+    "id": "a02a4ed5-452b-4b89-a4c7-ca30fbb8a952",
+    "text": "好消息，好消息！全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481",
+    "timestamp": "2025-04-29 04:33:10",
+    "wav_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/a02a4ed5-452b-4b89-a4c7-ca30fbb8a952.wav",
+    "mp3_path": "/Users/zli142/Desktop/moshengAI/app_dev/client_output/a02a4ed5-452b-4b89-a4c7-ca30fbb8a952.mp3",
+    "wav_url": "/client_output/a02a4ed5-452b-4b89-a4c7-ca30fbb8a952.wav",
+    "mp3_url": "/client_output/a02a4ed5-452b-4b89-a4c7-ca30fbb8a952.mp3",
+    "user_id": null,
+    "session_id": null,
+    "gender": "男声",
+    "voice_label": "男声508磁性大气"
   }
 ]
