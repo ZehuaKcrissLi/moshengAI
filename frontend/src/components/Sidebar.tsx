@@ -186,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     
     // 触发加载聊天事件
     const loadEvent = new CustomEvent('loadChatSession', { 
-      detail: { messages: chat.messages } 
+      detail: { id: chat.id, messages: chat.messages } 
     });
     window.dispatchEvent(loadEvent);
   };
@@ -298,7 +298,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             >
               最近使用
           </button>
-          <button 
+          {/* <button 
               className={`flex-1 py-3 text-center font-medium text-sm ${
                 activeTab === 'saved' 
                   ? 'text-primary-600 border-b-2 border-primary-600' 
@@ -307,7 +307,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
               onClick={() => setActiveTab('saved')}
           >
             已保存
-          </button>
+          </button> */}
         </div>
       </div>
       

@@ -83,6 +83,7 @@ const INITIAL_MESSAGES: Message[] = [
 
 const ChatInterface: React.FC = () => {
   // const { isAuthenticated } = useAuth(); // Keep commented out
+  const [chatId, setChatId] = useState<string>(() => generateId());
   const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false); // 主加载状态 (LLM 响应 + 函数调用处理)
@@ -111,6 +112,11 @@ const ChatInterface: React.FC = () => {
     const handleLoadSession = (e: CustomEvent) => {
       if (e.detail && e.detail.messages) {
         setMessages(e.detail.messages);
+        if (e.detail.id) {
+          setChatId(e.detail.id);
+        } else {
+          setChatId(generateId());
+        }
         setHasInteracted(true);
       }
     };
@@ -133,60 +139,56 @@ const ChatInterface: React.FC = () => {
 
   // 自动保存当前对话到最近历史
   useEffect(() => {
-    if (messages.length > 1 && hasInteracted) {
-      // 获取现有历史记录
-      const chatHistory: ChatSession[] = JSON.parse(localStorage.getItem('chatHistory') || '[]'); // Add type
-      
-      // 生成更有意义的标题
-      let title = '';
-      
-      if (messages.length > 1) {
-        // 尝试基于用户第一条消息生成主题
-        const firstUserMessage = messages.find(msg => msg.sender === 'user');
-        if (firstUserMessage) {
-          title = firstUserMessage.content.slice(0, 25) + (firstUserMessage.content.length > 25 ? '...' : '');
-        } else {
-          title = '新对话';
-        }
-      }
-      
-      // 创建对话ID，如果现有则保留ID
-      const existingChat = chatHistory.find((chat: ChatSession) => // Use ChatSession type
-        JSON.stringify(chat.messages) === JSON.stringify(messages)
-      );
-      
-      const chatId = existingChat?.id || generateId();
-      
-      // 创建新的聊天记录对象
-      const newChat: ChatSession = {
-        id: chatId,
-        title: title,
-        date: new Date().toLocaleString(),
-        preview: messages[messages.length - 1].content.slice(0, 50) + (messages[messages.length - 1].content.length > 50 ? '...' : ''),
-        messages: messages
-      };
-      
-      // 如果存在相同ID的对话，就更新它；否则添加新对话
-      const chatIndex = chatHistory.findIndex((chat: ChatSession) => chat.id === chatId); // Use ChatSession type
-      let updatedHistory;
-      
-      if (chatIndex !== -1) {
-        // 更新现有对话
-        updatedHistory = [...chatHistory];
-        updatedHistory[chatIndex] = newChat;
-      } else {
-        // 添加新对话到历史记录前端
-        updatedHistory = [newChat, ...chatHistory.filter((chat: ChatSession) => chat.id !== chatId)].slice(0, 50); // Use ChatSession type
-      }
-      
-      // 保存更新后的历史记录
-      localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
-      
-      // 触发历史记录更新事件，使Sidebar实时更新
-      const event = new CustomEvent('chatHistoryUpdated', { detail: { chatHistory: updatedHistory } });
-      window.dispatchEvent(event);
+    // Don't save if it's just the initial message OR if the user hasn't interacted yet in this session
+    if (messages.length <= INITIAL_MESSAGES.length || !hasInteracted) {
+      return;
     }
-  }, [messages, hasInteracted]);
+
+    // 获取现有历史记录
+    const chatHistory: ChatSession[] = JSON.parse(localStorage.getItem('chatHistory') || '[]'); // Add type
+
+    // 使用当前 chatId
+    const currentId = chatId;
+
+    // 查找当前会话是否已存在
+    const chatIndex = chatHistory.findIndex((chat: ChatSession) => chat.id === currentId);
+
+    // 生成更有意义的标题
+    let title = '新对话'; // Default title
+    const firstUserMessage = messages.find(msg => msg.sender === 'user');
+    if (firstUserMessage) {
+      title = firstUserMessage.content.slice(0, 25) + (firstUserMessage.content.length > 25 ? '...' : '');
+    }
+    // Use last message for preview
+    const preview = messages[messages.length - 1].content.slice(0, 50) + (messages[messages.length - 1].content.length > 50 ? '...' : '');
+
+    // 创建/更新聊天记录对象
+    const currentChatData: ChatSession = {
+      id: currentId,
+      title: title,
+      date: new Date().toLocaleString(), // Update date on every save/interaction
+      preview: preview,
+      messages: messages
+    };
+
+    let updatedHistory;
+    if (chatIndex !== -1) {
+      // 更新现有对话
+      updatedHistory = [...chatHistory];
+      updatedHistory[chatIndex] = currentChatData;
+    } else {
+      // 添加新对话到历史记录前端，并限制历史记录数量
+      updatedHistory = [currentChatData, ...chatHistory].slice(0, 50); 
+    }
+
+    // 保存更新后的历史记录
+    localStorage.setItem('chatHistory', JSON.stringify(updatedHistory));
+
+    // 触发历史记录更新事件，使Sidebar实时更新
+    const event = new CustomEvent('chatHistoryUpdated', { detail: { chatHistory: updatedHistory } });
+    window.dispatchEvent(event);
+
+  }, [messages, hasInteracted, chatId]); // Keep chatId and hasInteracted dependencies for clarity, although logic inside handles the state correctly
 
   // 处理消息发送（集成函数调用解析）
   const handleSend = async () => {
@@ -293,6 +295,14 @@ const ChatInterface: React.FC = () => {
     setStreamingMessage('');
     setIsLoading(false); // 流式结束后停止 loading
     return newId; // 返回新消息的 ID
+  };
+
+  // 使用预设示例
+  const handleUseExample = (title: string) => {
+    setInputValue(`请帮我生成一段关于"${title}"的配音文案`);
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
   };
 
   // 新增：处理函数调用的副作用
