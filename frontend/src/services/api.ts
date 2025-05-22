@@ -422,7 +422,18 @@ export const ttsAPI = {
         }
         
         // 如果status_url已经包含完整路径，则不需要添加TTS_API_BASE_URL
-        const finalUrl = pollUrl.startsWith('/') ? pollUrl : `${TTS_API_BASE_URL}/${pollUrl}`;
+        // 修复：确保URL以/tts开头，而不是直接使用status_url
+        let finalUrl;
+        if (pollUrl.startsWith('/synthesis_tasks')) {
+          // 确保status_url请求被正确代理到TTS服务
+          finalUrl = `/tts${pollUrl}`;
+          console.log('修正后的轮询URL:', finalUrl);
+        } else if (pollUrl.startsWith('/')) {
+          finalUrl = pollUrl;
+        } else {
+          finalUrl = `${TTS_API_BASE_URL}/${pollUrl}`;
+        }
+        
         console.log('最终轮询URL:', finalUrl);
         
         const resp = await fetch(finalUrl);
