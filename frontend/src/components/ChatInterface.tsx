@@ -57,7 +57,7 @@ interface ChatSession {
 // 定义后端 API 基础 URL (端口 8000)
 // const API_BASE_URL_FOR_PREVIEW = 'http://localhost:8000'; 
 // const API_BASE_URL_FOR_PREVIEW = 'https://lou-twiki-scope-pos.trycloudflare.com';
-const API_BASE_URL_FOR_PREVIEW = import.meta.env.VITE_STATIC_BASE_URL || 'http://localhost:8000/';
+const API_BASE_URL_FOR_PREVIEW = import.meta.env.VITE_STATIC_BASE_URL || '';  // 使用相对路径
 
 // 将前端Message格式转换为API Message格式
 const convertToApiMessages = (messages: Message[]): MessageType[] => {
@@ -97,6 +97,7 @@ const ChatInterface: React.FC = () => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<VoicePreview | null>(null); // 仍然需要跟踪哪个被选中
   const [confirmingVoiceId, setConfirmingVoiceId] = useState<string | null>(null); // 跟踪哪个音色正在合成
+  const [refreshingVoiceId, setRefreshingVoiceId] = useState<string | null>(null); // 跟踪哪个音色选择器正在刷新
   
   // 监听清除会话事件
   useEffect(() => {
@@ -313,9 +314,15 @@ const ChatInterface: React.FC = () => {
         console.log('处理函数调用:', call.action, call.args);
         switch (call.action) {
           case 'recommend_voice_styles':
-            // 确保 args.text 是字符串
+            // 确保 args.text 是字符串，并支持可选的 speaker_id
             if (typeof call.args.text === 'string') {
-                await handleRecommendVoiceStylesCall(call.args as { text: string }, messageIdToUpdate);
+                const speakerId = call.args.speaker_id && typeof call.args.speaker_id === 'string' 
+                  ? call.args.speaker_id 
+                  : undefined;
+                await handleRecommendVoiceStylesCall(
+                  { text: call.args.text, speaker_id: speakerId }, 
+                  messageIdToUpdate
+                );
             } else {
                 console.error('无效的 recommend_voice_styles 参数: text 不是字符串', call.args);
             }
@@ -359,9 +366,14 @@ const ChatInterface: React.FC = () => {
   };
 
   // 新增：处理 recommend_voice_styles 调用
-  const handleRecommendVoiceStylesCall = async (args: { text: string }, messageId: string) => {
-      // 复用之前的 handleConfirmText 逻辑
-      await handleConfirmText(args.text, messageId);
+  const handleRecommendVoiceStylesCall = async (args: { text: string; speaker_id?: string }, messageId: string) => {
+      // 如果有speaker_id，使用指定配音员推荐逻辑，否则使用文本推荐逻辑
+      setRefreshingVoiceId(messageId); // 设置刷新状态
+      try {
+        await handleConfirmText(args.text, messageId, args.speaker_id);
+      } finally {
+        setRefreshingVoiceId(null); // 清除刷新状态
+      }
   };
 
   // 新增：处理 tts_preview 调用 (复用 handlePreviewVoice)
@@ -434,9 +446,9 @@ const ChatInterface: React.FC = () => {
   };
 
   // 处理确认文本（获取推荐音色）- 修改以添加绝对预览 URL
-  const handleConfirmText = async (text: string, messageId: string) => {
+  const handleConfirmText = async (text: string, messageId: string, speakerId?: string) => {
     try {
-      const recommendResult = await chatAPI.recommendVoiceStyles(text);
+      const recommendResult = await chatAPI.recommendVoiceStyles(text, 3, speakerId);
       if (recommendResult.success) {
         const mapVoice = (voiceLabel: string, gender: string): VoicePreview => {
           const genderDir = gender === '男声' ? 'male' : 'female';
@@ -444,8 +456,8 @@ const ChatInterface: React.FC = () => {
             id: `${genderDir}-${voiceLabel}`,
             label: voiceLabel,
             gender: gender,
-            // 构建指向后端 API (8000) 的绝对 URL
-            audioUrl: `${API_BASE_URL_FOR_PREVIEW}/prompt_voice/${genderDir}/${voiceLabel}.wav`,
+            // 使用TTS服务的正确路径
+            audioUrl: `/tts/prompt_voice/${genderDir}/${encodeURIComponent(voiceLabel)}.wav`,
             isLoading: false
           };
         };
@@ -593,7 +605,7 @@ const ChatInterface: React.FC = () => {
               }
             }}
             confirmingVoiceId={confirmingVoiceId}
-            isLoading={isLoading && !confirmingVoiceId}
+            isLoading={refreshingVoiceId === message.id}
           />
         )}
         

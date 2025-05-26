@@ -1,0 +1,385 @@
+2025-05-23 00:05:53: Traceback (most recent call last):
+2025-05-23 00:05:53:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:05:53:     import uvicorn
+2025-05-23 00:05:53: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:05:56: Traceback (most recent call last):
+2025-05-23 00:05:56:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:05:56:     import uvicorn
+2025-05-23 00:05:56: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:05:59: Traceback (most recent call last):
+2025-05-23 00:05:59:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:05:59:     import uvicorn
+2025-05-23 00:05:59: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:02: Traceback (most recent call last):
+2025-05-23 00:06:02:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:02:     import uvicorn
+2025-05-23 00:06:02: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:05: Traceback (most recent call last):
+2025-05-23 00:06:05:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:05:     import uvicorn
+2025-05-23 00:06:05: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:08: Traceback (most recent call last):
+2025-05-23 00:06:08:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:08:     import uvicorn
+2025-05-23 00:06:08: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:11: Traceback (most recent call last):
+2025-05-23 00:06:11:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:11:     import uvicorn
+2025-05-23 00:06:11: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:14: Traceback (most recent call last):
+2025-05-23 00:06:14:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:14:     import uvicorn
+2025-05-23 00:06:14: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:17: Traceback (most recent call last):
+2025-05-23 00:06:17:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:17:     import uvicorn
+2025-05-23 00:06:17: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:20: Traceback (most recent call last):
+2025-05-23 00:06:20:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:20:     import uvicorn
+2025-05-23 00:06:20: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:23: Traceback (most recent call last):
+2025-05-23 00:06:23:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:23:     import uvicorn
+2025-05-23 00:06:23: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:26: Traceback (most recent call last):
+2025-05-23 00:06:26:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:26:     import uvicorn
+2025-05-23 00:06:26: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:29: Traceback (most recent call last):
+2025-05-23 00:06:29:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:29:     import uvicorn
+2025-05-23 00:06:29: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:32: Traceback (most recent call last):
+2025-05-23 00:06:32:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:32:     import uvicorn
+2025-05-23 00:06:32: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:35: Traceback (most recent call last):
+2025-05-23 00:06:35:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:35:     import uvicorn
+2025-05-23 00:06:35: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:38: Traceback (most recent call last):
+2025-05-23 00:06:38:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:38:     import uvicorn
+2025-05-23 00:06:38: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:41: Traceback (most recent call last):
+2025-05-23 00:06:41:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:41:     import uvicorn
+2025-05-23 00:06:41: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:44: Traceback (most recent call last):
+2025-05-23 00:06:44:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:44:     import uvicorn
+2025-05-23 00:06:44: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:47: Traceback (most recent call last):
+2025-05-23 00:06:47:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:47:     import uvicorn
+2025-05-23 00:06:47: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:50: Traceback (most recent call last):
+2025-05-23 00:06:50:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:50:     import uvicorn
+2025-05-23 00:06:50: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:53: Traceback (most recent call last):
+2025-05-23 00:06:53:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:53:     import uvicorn
+2025-05-23 00:06:53: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:56: Traceback (most recent call last):
+2025-05-23 00:06:56:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:56:     import uvicorn
+2025-05-23 00:06:56: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:06:59: Traceback (most recent call last):
+2025-05-23 00:06:59:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:06:59:     import uvicorn
+2025-05-23 00:06:59: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:02: Traceback (most recent call last):
+2025-05-23 00:07:02:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:02:     import uvicorn
+2025-05-23 00:07:02: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:05: Traceback (most recent call last):
+2025-05-23 00:07:05:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:05:     import uvicorn
+2025-05-23 00:07:05: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:08: Traceback (most recent call last):
+2025-05-23 00:07:08:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:08:     import uvicorn
+2025-05-23 00:07:08: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:11: Traceback (most recent call last):
+2025-05-23 00:07:11:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:11:     import uvicorn
+2025-05-23 00:07:11: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:14: Traceback (most recent call last):
+2025-05-23 00:07:14:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:14:     import uvicorn
+2025-05-23 00:07:14: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:17: Traceback (most recent call last):
+2025-05-23 00:07:17:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:17:     import uvicorn
+2025-05-23 00:07:17: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:20: Traceback (most recent call last):
+2025-05-23 00:07:20:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:20:     import uvicorn
+2025-05-23 00:07:20: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:23: Traceback (most recent call last):
+2025-05-23 00:07:23:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:23:     import uvicorn
+2025-05-23 00:07:23: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:26: Traceback (most recent call last):
+2025-05-23 00:07:26:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:26:     import uvicorn
+2025-05-23 00:07:26: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:29: Traceback (most recent call last):
+2025-05-23 00:07:29:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:29:     import uvicorn
+2025-05-23 00:07:29: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:32: Traceback (most recent call last):
+2025-05-23 00:07:32:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:32:     import uvicorn
+2025-05-23 00:07:32: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:35: Traceback (most recent call last):
+2025-05-23 00:07:35:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:35:     import uvicorn
+2025-05-23 00:07:35: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:38: Traceback (most recent call last):
+2025-05-23 00:07:38:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:38:     import uvicorn
+2025-05-23 00:07:38: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:41: Traceback (most recent call last):
+2025-05-23 00:07:41:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:41:     import uvicorn
+2025-05-23 00:07:41: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:44: Traceback (most recent call last):
+2025-05-23 00:07:44:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:44:     import uvicorn
+2025-05-23 00:07:44: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:47: Traceback (most recent call last):
+2025-05-23 00:07:47:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:47:     import uvicorn
+2025-05-23 00:07:47: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:50: Traceback (most recent call last):
+2025-05-23 00:07:50:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:50:     import uvicorn
+2025-05-23 00:07:50: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:53: Traceback (most recent call last):
+2025-05-23 00:07:53:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:53:     import uvicorn
+2025-05-23 00:07:53: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:56: Traceback (most recent call last):
+2025-05-23 00:07:56:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:56:     import uvicorn
+2025-05-23 00:07:56: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:07:59: Traceback (most recent call last):
+2025-05-23 00:07:59:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:07:59:     import uvicorn
+2025-05-23 00:07:59: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:02: Traceback (most recent call last):
+2025-05-23 00:08:02:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:02:     import uvicorn
+2025-05-23 00:08:02: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:05: Traceback (most recent call last):
+2025-05-23 00:08:05:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:05:     import uvicorn
+2025-05-23 00:08:05: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:08: Traceback (most recent call last):
+2025-05-23 00:08:08:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:08:     import uvicorn
+2025-05-23 00:08:08: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:12: Traceback (most recent call last):
+2025-05-23 00:08:12:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:12:     import uvicorn
+2025-05-23 00:08:12: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:15: Traceback (most recent call last):
+2025-05-23 00:08:15:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:15:     import uvicorn
+2025-05-23 00:08:15: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:18: Traceback (most recent call last):
+2025-05-23 00:08:18:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:18:     import uvicorn
+2025-05-23 00:08:18: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:21: Traceback (most recent call last):
+2025-05-23 00:08:21:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:21:     import uvicorn
+2025-05-23 00:08:21: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:24: Traceback (most recent call last):
+2025-05-23 00:08:24:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:24:     import uvicorn
+2025-05-23 00:08:24: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:27: Traceback (most recent call last):
+2025-05-23 00:08:27:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:27:     import uvicorn
+2025-05-23 00:08:27: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:30: Traceback (most recent call last):
+2025-05-23 00:08:30:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:30:     import uvicorn
+2025-05-23 00:08:30: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:33: Traceback (most recent call last):
+2025-05-23 00:08:33:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:33:     import uvicorn
+2025-05-23 00:08:33: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:36: Traceback (most recent call last):
+2025-05-23 00:08:36:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:36:     import uvicorn
+2025-05-23 00:08:36: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:39: Traceback (most recent call last):
+2025-05-23 00:08:39:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:39:     import uvicorn
+2025-05-23 00:08:39: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:42: Traceback (most recent call last):
+2025-05-23 00:08:42:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:42:     import uvicorn
+2025-05-23 00:08:42: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:45: Traceback (most recent call last):
+2025-05-23 00:08:45:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:45:     import uvicorn
+2025-05-23 00:08:45: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:48: Traceback (most recent call last):
+2025-05-23 00:08:48:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:48:     import uvicorn
+2025-05-23 00:08:48: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:51: Traceback (most recent call last):
+2025-05-23 00:08:51:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:51:     import uvicorn
+2025-05-23 00:08:51: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:54: Traceback (most recent call last):
+2025-05-23 00:08:54:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:54:     import uvicorn
+2025-05-23 00:08:54: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:08:57: Traceback (most recent call last):
+2025-05-23 00:08:57:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:08:57:     import uvicorn
+2025-05-23 00:08:57: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:09:00: Traceback (most recent call last):
+2025-05-23 00:09:00:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:09:00:     import uvicorn
+2025-05-23 00:09:00: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:09:03: Traceback (most recent call last):
+2025-05-23 00:09:03:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:09:03:     import uvicorn
+2025-05-23 00:09:03: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:09:06: Traceback (most recent call last):
+2025-05-23 00:09:06:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:09:06:     import uvicorn
+2025-05-23 00:09:06: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:09:09: Traceback (most recent call last):
+2025-05-23 00:09:09:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:09:09:     import uvicorn
+2025-05-23 00:09:09: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:09:12: Traceback (most recent call last):
+2025-05-23 00:09:12:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:09:12:     import uvicorn
+2025-05-23 00:09:12: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:07: Traceback (most recent call last):
+2025-05-23 00:10:07:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:07:     import uvicorn
+2025-05-23 00:10:07: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:10: Traceback (most recent call last):
+2025-05-23 00:10:10:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:10:     import uvicorn
+2025-05-23 00:10:10: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:13: Traceback (most recent call last):
+2025-05-23 00:10:13:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:13:     import uvicorn
+2025-05-23 00:10:13: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:16: Traceback (most recent call last):
+2025-05-23 00:10:16:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:16:     import uvicorn
+2025-05-23 00:10:16: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:19: Traceback (most recent call last):
+2025-05-23 00:10:19:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:19:     import uvicorn
+2025-05-23 00:10:19: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:22: Traceback (most recent call last):
+2025-05-23 00:10:22:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:22:     import uvicorn
+2025-05-23 00:10:22: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:25: Traceback (most recent call last):
+2025-05-23 00:10:25:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:25:     import uvicorn
+2025-05-23 00:10:25: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:28: Traceback (most recent call last):
+2025-05-23 00:10:28:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:28:     import uvicorn
+2025-05-23 00:10:28: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:31: Traceback (most recent call last):
+2025-05-23 00:10:31:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:31:     import uvicorn
+2025-05-23 00:10:31: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:34: Traceback (most recent call last):
+2025-05-23 00:10:34:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:34:     import uvicorn
+2025-05-23 00:10:34: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:37: Traceback (most recent call last):
+2025-05-23 00:10:37:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:37:     import uvicorn
+2025-05-23 00:10:37: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:40: Traceback (most recent call last):
+2025-05-23 00:10:40:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:40:     import uvicorn
+2025-05-23 00:10:40: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:43: Traceback (most recent call last):
+2025-05-23 00:10:43:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:43:     import uvicorn
+2025-05-23 00:10:43: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:46: Traceback (most recent call last):
+2025-05-23 00:10:46:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:46:     import uvicorn
+2025-05-23 00:10:46: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:49: Traceback (most recent call last):
+2025-05-23 00:10:49:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:49:     import uvicorn
+2025-05-23 00:10:49: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:52: Traceback (most recent call last):
+2025-05-23 00:10:52:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:52:     import uvicorn
+2025-05-23 00:10:52: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:55: Traceback (most recent call last):
+2025-05-23 00:10:55:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:55:     import uvicorn
+2025-05-23 00:10:55: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:10:58: Traceback (most recent call last):
+2025-05-23 00:10:58:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:10:58:     import uvicorn
+2025-05-23 00:10:58: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:01: Traceback (most recent call last):
+2025-05-23 00:11:01:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:01:     import uvicorn
+2025-05-23 00:11:01: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:04: Traceback (most recent call last):
+2025-05-23 00:11:04:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:04:     import uvicorn
+2025-05-23 00:11:04: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:07: Traceback (most recent call last):
+2025-05-23 00:11:07:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:07:     import uvicorn
+2025-05-23 00:11:07: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:10: Traceback (most recent call last):
+2025-05-23 00:11:10:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:10:     import uvicorn
+2025-05-23 00:11:10: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:13: Traceback (most recent call last):
+2025-05-23 00:11:13:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:13:     import uvicorn
+2025-05-23 00:11:13: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:16: Traceback (most recent call last):
+2025-05-23 00:11:16:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:16:     import uvicorn
+2025-05-23 00:11:16: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:19: Traceback (most recent call last):
+2025-05-23 00:11:19:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:19:     import uvicorn
+2025-05-23 00:11:19: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:22: Traceback (most recent call last):
+2025-05-23 00:11:22:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:22:     import uvicorn
+2025-05-23 00:11:22: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:25: Traceback (most recent call last):
+2025-05-23 00:11:25:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:25:     import uvicorn
+2025-05-23 00:11:25: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:28: Traceback (most recent call last):
+2025-05-23 00:11:28:   File "/mnt/moshengAI/backend/run.py", line 1, in <module>
+2025-05-23 00:11:28:     import uvicorn
+2025-05-23 00:11:28: ModuleNotFoundError: No module named 'uvicorn'
+2025-05-23 00:11:31: /mnt/moshengAI/backend/run.py: line 1: import: command not found
+2025-05-23 00:11:31: /mnt/moshengAI/backend/run.py: line 2: import: command not found
+2025-05-23 00:11:31: /mnt/moshengAI/backend/run.py: line 3: from: command not found
+2025-05-23 00:11:31: /mnt/moshengAI/backend/run.py: line 10: syntax error near unexpected token `host'
+2025-05-23 00:11:31: /mnt/moshengAI/backend/run.py: line 10: `    host = os.getenv("HOST", "0.0.0.0")'

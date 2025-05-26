@@ -153,7 +153,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
     
     // Google OAuth参数 - 确保与后端保持一致
     const clientId = '1080640002203-8llt2h00f9dbj5e7gd6t0rakh61b8ch1.apps.googleusercontent.com';
-    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/google-callback`);
+    const redirectUri = encodeURIComponent('http://8.138.112.108:5173/auth/google-callback');
     const scope = encodeURIComponent('profile email');
     const responseType = 'code';
     

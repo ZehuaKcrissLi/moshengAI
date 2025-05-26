@@ -267,20 +267,27 @@ export const chatAPI = {
   },
   
   // 根据文本推荐音色
-  recommendVoiceStyles: async (text: string, count: number = 3) => {
+  recommendVoiceStyles: async (text: string, count: number = 3, speakerId?: string) => {
     try {
       console.log('使用fetch API发送推荐音色请求');
       // 使用fetch API代替axios
+      const requestBody: any = {
+        text,
+        count
+      };
+      
+      // 如果提供了speakerId，添加到请求体中
+      if (speakerId) {
+        requestBody.speaker_id = speakerId;
+      }
+      
       const response = await fetch('/api/chat/recommend_voice_styles', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          text,
-          count
-        })
+        body: JSON.stringify(requestBody)
       });
       
       if (!response.ok) {

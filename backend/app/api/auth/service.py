@@ -187,7 +187,7 @@ def google_login(code: str) -> Dict[str, Any]:
     # Google OAuth配置
     client_id = "1080640002203-8llt2h00f9dbj5e7gd6t0rakh61b8ch1.apps.googleusercontent.com"
     client_secret = "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"  # 更新为正确的密钥
-    redirect_uri = "http://localhost:5173/auth/google-callback"
+    redirect_uri = "http://8.138.112.108:5173/auth/google-callback"
     
     print(f"Google OAuth配置: client_id={client_id[:10]}..., redirect_uri={redirect_uri}")
     

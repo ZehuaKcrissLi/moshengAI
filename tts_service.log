@@ -1,0 +1,7 @@
+/root/miniforge3/envs/cosyvoice/lib/python3.9/site-packages/diffusers/models/lora.py:393: FutureWarning: `LoRACompatibleLinear` is deprecated and will be removed in version 1.0.0. Use of `LoRACompatibleLinear` is deprecated. Please switch to PEFT backend by installing PEFT: `pip install peft`.
+  deprecate("LoRACompatibleLinear", "1.0.0", deprecation_message)
+2025-05-22 10:16:12,173 INFO input frame rate=25
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+2025-05-22 10:16:13,559 WETEXT INFO building fst for zh_normalizer ...
+2025-05-22 10:16:13,559 INFO building fst for zh_normalizer ...

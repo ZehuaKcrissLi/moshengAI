@@ -6,7 +6,7 @@ from typing import List, Optional
 import os
 from .api import router as api_router
 
-app = FastAPI(title="魔声AI API", description="AI商业英文配音服务")
+app = FastAPI(title="魔声AI API", description="AI商业配音服务")
 
 # 添加CORS中间件
 app.add_middleware(

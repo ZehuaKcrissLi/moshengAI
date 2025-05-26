@@ -7,6 +7,7 @@ interface VoicePreviewCardProps {
   audioUrl?: string;
   isLoading: boolean;
   isSelected: boolean;
+  onPreview?: () => void;
   onConfirm: () => void;
 }
 
@@ -16,6 +17,7 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
   audioUrl,
   isLoading,
   isSelected,
+  onPreview,
   onConfirm
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -42,6 +44,8 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
           console.error("音频播放失败:", error);
           setIsPlaying(false);
         });
+        // 当开始播放时，调用onPreview回调（如果提供）
+        onPreview?.();
       }
       setIsPlaying(!isPlaying);
     }

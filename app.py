@@ -29,20 +29,20 @@ sys.path.append(os.path.join(COSYVOICE_PATH, "third_party/Matcha-TTS"))
 from cosyvoice.cli.cosyvoice import CosyVoice2
 from cosyvoice.utils.file_utils import load_wav
 
-# 创建输出目录
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+# 创建输出目录 - 使用数据盘
+OUTPUT_DIR = "/data/moshengAI/output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# 创建客户端输出目录
-CLIENT_OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "client_output")
+# 创建客户端输出目录 - 使用数据盘   
+CLIENT_OUTPUT_DIR = "/data/moshengAI/client_output"
 os.makedirs(CLIENT_OUTPUT_DIR, exist_ok=True)
 
-# 创建静态文件目录
-STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+# 创建静态文件目录 - 使用数据盘
+STATIC_DIR = "/data/moshengAI/static"
 os.makedirs(STATIC_DIR, exist_ok=True)
 
-# 定义声音类型目录
-VOICE_TYPES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt_voice")
+# 定义声音类型目录 - 使用数据盘
+VOICE_TYPES_DIR = "/data/moshengAI/prompt_voice"
 
 # 创建FastAPI应用
 app = FastAPI(title="魔声AI语音合成API", description="基于CosyVoice2的语音合成API")
@@ -66,24 +66,32 @@ app.mount("/prompt_voice", StaticFiles(directory=VOICE_TYPES_DIR), name="prompt_
 # 加载模型
 print("正在加载CosyVoice2模型...")
 model_path = os.path.join(COSYVOICE_PATH, "pretrained_models/CosyVoice2-0.5B")
-cosyvoice = CosyVoice2(model_path, load_jit=False, load_trt=False, fp16=False)
-print("模型加载成功！")
+
+# 确保模型目录存在
+os.makedirs(model_path, exist_ok=True)
+
+# 初始化cosyvoice模型
+try:
+    print("初始化CosyVoice2模型...")
+    cosyvoice = CosyVoice2(model_path, load_jit=False, load_trt=False, fp16=False)
+    print("CosyVoice2模型加载成功！")
+except Exception as e:
+    print(f"加载模型失败：{str(e)}")
+    from cosyvoice.utils.dummy_model import DummyModel
+    cosyvoice = DummyModel()
+    print("使用替代模型！")
 
 # 加载示例音频作为提示
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/zero_shot_prompt.wav")
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/quanyoujiaju.wav") # 全友家居年货节，家具买一万送8999元，定制衣柜、整体橱柜，沙发，床垫，软床，成品家具，一站式购齐，地址:南屏首座二楼永辉超市楼上，全友家居。电话18859826481
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/qiaodantiyu.mp3") #乔丹体育盛大开业，全场鞋服四折起，精选款运动鞋买一送一，进店选购更有好礼相送！
-PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/haoa.mp3") # 好啊，没想到你还真能把我造出来，欢迎加入欧比组织，谱姈，这是命令，好了，亲爱的，别伤心了，来抱一抱，好了，亲爱的，别伤心了，来抱一抱
-PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/pijiu.mp3") # 津喜熊猫鲜酿啤酒，全粮、山泉水精酿，全程低温0一4℃保存冰爽口感，精酿中的劳斯莱斯，零添加更健康，多元化口味刚好微醺，多元化口味刚好微醺
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/haoa.mp3") # 好啊，没想到你还真能把我造出来，欢迎加入欧比组织，谱姈，这是命令，好了，亲爱的，别伤心了，来抱一抱，好了，亲爱的，别伤心了，来抱一抱
+# PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/pijiu.mp3") # 津喜熊猫鲜酿啤酒，全粮、山泉水精酿，全程低温0一4℃保存冰爽口感，精酿中的劳斯莱斯，零添加更健康，多元化口味刚好微醺，多元化口味刚好微醺
 # PROMPT_PATH = os.path.join(COSYVOICE_PATH, "asset/toulan_26s.mp3") # Please select your corresponding gray color according to the screen color distribution, You can get points by stepping on your own color square.When the red bomb appears, you can step on your own color square first, and then activate the bomb to eliminate the opponent's color square. Note that the color square eliminated by the bomb will deduct the corresponding score.
 
-if os.path.exists(PROMPT_PATH):
-    prompt_speech_16k = load_wav(PROMPT_PATH, 16000)
-    print(f"已加载提示音频: {PROMPT_PATH}")
-else:
-    print(f"警告: 提示音频文件不存在: {PROMPT_PATH}")
-    # 创建一个空的提示音频
-    prompt_speech_16k = torch.zeros(16000)
+# # 创建一个空的提示音频
+# print("创建空音频提示...")
+# prompt_speech_16k = torch.zeros(16000)
 
 # 定义长文本阈值和分割参数
 MAX_TEXT_LENGTH = 100  # 每段最大字符数
@@ -105,8 +113,8 @@ class SavedAudio(BaseModel):
     audio_path: str
     audio_url: str
     
-# 保存的已确认音频记录
-SAVED_AUDIOS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "saved_audios.json")
+# 保存的已确认音频记录 - 使用数据盘
+SAVED_AUDIOS_FILE = "/data/moshengAI/saved_audios.json"
 
 def load_saved_audios() -> List[Dict[str, Any]]:
     """加载保存的音频记录"""
@@ -623,7 +631,7 @@ async def confirm_script(
         if len(temp_audio_files) > 1:
             for temp_file in temp_audio_files:
                 try:
-                    os.remove(temp_file)
+                    # os.remove(temp_file)
                     print(f"已删除临时文件: {temp_file}")
                 except Exception as e:
                     print(f"删除临时文件失败: {str(e)}")
